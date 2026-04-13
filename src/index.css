@@ -39,10 +39,10 @@
   background: #e8edf3;
 }
 
-/* Position zoom control below top bar, left of the right panel */
-.leaflet-top.leaflet-right {
+/* Position zoom control below top bar on the left */
+.leaflet-top.leaflet-left {
   top: 64px !important;
-  right: 248px !important;
+  left: 8px !important;
 }
 
 .leaflet-control-attribution {

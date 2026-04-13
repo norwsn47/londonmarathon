@@ -132,7 +132,7 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
       maxZoom: 19,
     }).addTo(map);
 
-    L.control.zoom({ position: 'topright' }).addTo(map);
+    L.control.zoom({ position: 'topleft' }).addTo(map);
 
     mapRef.current = map;
 

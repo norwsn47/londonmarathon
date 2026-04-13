@@ -169,71 +169,28 @@ export default function App() {
         </div>
       </div>
 
-      {/* Right panel — below top bar */}
-      <div className="absolute right-4 top-[64px] z-[1000] w-56">
-        <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-4 border border-border shadow-xl flex flex-col gap-4">
+      {/* Right panel — below top bar, expands leftward when splits open */}
+      <div className="absolute right-4 top-[64px] z-[1000]">
+        <div className="bg-white/95 backdrop-blur-sm rounded-2xl border border-border shadow-xl flex flex-row">
 
-          {/* Target time + pace */}
-          <div>
-            <p className="t-xs font-semibold text-slate-400 uppercase tracking-widest mb-1">Target</p>
-            <div className="flex items-baseline gap-2">
-              {editingTarget ? (
-                <input
-                  ref={targetInputRef}
-                  type="text"
-                  value={targetInputVal}
-                  onChange={e => setTargetInputVal(e.target.value)}
-                  onBlur={commitTargetInput}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') targetInputRef.current?.blur();
-                    if (e.key === 'Escape') { setTargetInputVal(secToHMM(targetSec)); setEditingTarget(false); }
-                  }}
-                  className="w-20 text-center t-xl font-bold font-mono text-orange-600 bg-orange-500/5 border border-orange-500/50 rounded-xl px-2 py-0.5 outline-none"
-                  autoFocus
-                />
-              ) : (
-                <button
-                  onClick={() => { setTargetInputVal(secToHMM(targetSec)); setEditingTarget(true); }}
-                  title="Click to edit target time"
-                  className="t-xl font-bold font-mono text-orange-600 bg-orange-500/5 border border-orange-500/20 rounded-xl px-3 py-0.5 hover:border-orange-500/50 hover:bg-orange-500/10 transition-all"
-                >
-                  {secToHMM(targetSec)}
-                </button>
-              )}
-              <span className="t-xs text-slate-400 font-mono whitespace-nowrap">
-                {formatPace(targetSec, displayUnit)}<span className="text-slate-300">/{displayUnit}</span>
-              </span>
-            </div>
-          </div>
-
-          {/* Splits toggle */}
-          <button
-            onClick={() => setShowSplits(v => !v)}
-            className="flex items-center justify-between w-full t-xs font-semibold text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors"
-          >
-            <span>Splits</span>
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ transform: showSplits ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
-              <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
-
+          {/* Splits column — shown to the left of main content */}
           {showSplits && (
-            <div className="-mt-2">
-              <div className="flex t-xs font-semibold text-slate-400 uppercase tracking-widest mb-1 px-0.5">
-                <span className="w-14">Mark</span>
+            <div className="p-4 border-r border-border w-44 flex flex-col gap-0.5">
+              <div className="flex t-xs font-semibold text-slate-400 uppercase tracking-widest mb-1.5">
+                <span className="w-12">Mark</span>
                 <span className="flex-1 text-right">Split</span>
-                <span className="w-16 text-right">Total</span>
+                <span className="w-14 text-right">Total</span>
               </div>
               {splits.map((row, i) => (
                 <div
                   key={row.label}
                   className={`flex items-center py-0.5 px-0.5 rounded ${i === 4 ? 'bg-orange-500/5' : ''}`}
                 >
-                  <span className={`w-14 t-xs font-semibold ${i === 4 ? 'text-orange-600' : 'text-slate-500'}`}>
+                  <span className={`w-12 t-xs font-semibold ${i === 4 ? 'text-orange-600' : 'text-slate-500'}`}>
                     {row.label}
                   </span>
                   <span className="flex-1 text-right t-xs font-mono text-slate-400">{row.split}</span>
-                  <span className={`w-16 text-right t-xs font-mono font-semibold ${i === splits.length - 1 ? 'text-orange-600' : 'text-slate-700'}`}>
+                  <span className={`w-14 text-right t-xs font-mono font-semibold ${i === splits.length - 1 ? 'text-orange-600' : 'text-slate-700'}`}>
                     {row.total}
                   </span>
                 </div>
@@ -241,44 +198,92 @@ export default function App() {
             </div>
           )}
 
-          <div className="border-t border-border" />
+          {/* Main content column */}
+          <div className="p-4 flex flex-col gap-4 w-56">
 
-          {/* Start time — editable */}
-          <div>
-            <label className="t-xs font-semibold text-slate-400 uppercase tracking-widest block mb-1">
-              Start time
-            </label>
-            <input
-              type="time"
-              value={startTimeStr}
-              onChange={e => setStartTimeStr(e.target.value)}
-              className="t-md font-semibold font-mono text-slate-900 bg-surface-2 border border-border rounded-lg px-2 py-1 outline-none focus:border-orange-500/60 transition-colors w-full"
-            />
+            {/* Target time + pace */}
+            <div>
+              <p className="t-xs font-semibold text-slate-400 uppercase tracking-widest mb-1">Target</p>
+              <div className="flex items-baseline gap-2">
+                {editingTarget ? (
+                  <input
+                    ref={targetInputRef}
+                    type="text"
+                    value={targetInputVal}
+                    onChange={e => setTargetInputVal(e.target.value)}
+                    onBlur={commitTargetInput}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') targetInputRef.current?.blur();
+                      if (e.key === 'Escape') { setTargetInputVal(secToHMM(targetSec)); setEditingTarget(false); }
+                    }}
+                    className="w-20 text-center t-xl font-bold font-mono text-orange-600 bg-orange-500/5 border border-orange-500/50 rounded-xl px-2 py-0.5 outline-none"
+                    autoFocus
+                  />
+                ) : (
+                  <button
+                    onClick={() => { setTargetInputVal(secToHMM(targetSec)); setEditingTarget(true); }}
+                    title="Click to edit target time"
+                    className="t-xl font-bold font-mono text-orange-600 bg-orange-500/5 border border-orange-500/20 rounded-xl px-3 py-0.5 hover:border-orange-500/50 hover:bg-orange-500/10 transition-all"
+                  >
+                    {secToHMM(targetSec)}
+                  </button>
+                )}
+                <span className="t-xs text-slate-400 font-mono whitespace-nowrap">
+                  {formatPace(targetSec, displayUnit)}<span className="text-slate-300">/{displayUnit}</span>
+                </span>
+              </div>
+            </div>
+
+            {/* Splits toggle */}
+            <button
+              onClick={() => setShowSplits(v => !v)}
+              className="flex items-center justify-between w-full t-xs font-semibold text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors"
+            >
+              <span>Splits</span>
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ transform: showSplits ? 'none' : 'rotate(180deg)', transition: 'transform 0.2s' }}>
+                <path d="M8 2l-4 4 4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+
+            <div className="border-t border-border" />
+
+            {/* Start time — editable */}
+            <div>
+              <label className="t-xs font-semibold text-slate-400 uppercase tracking-widest block mb-1">
+                Start time
+              </label>
+              <input
+                type="time"
+                value={startTimeStr}
+                onChange={e => setStartTimeStr(e.target.value)}
+                className="t-md font-semibold font-mono text-slate-900 bg-surface-2 border border-border rounded-lg px-2 py-1 outline-none focus:border-orange-500/60 transition-colors w-full"
+              />
+            </div>
+
+            {/* Finish time — read-only */}
+            <div>
+              <p className="t-xs font-semibold text-slate-400 uppercase tracking-widest mb-0.5">Finish time</p>
+              <p className="t-lg font-bold text-slate-900">{predictedFinishTime}</p>
+            </div>
+
+            {/* km / mi toggle */}
+            <div className="flex gap-2">
+              {(['km', 'mi'] as const).map(u => (
+                <button
+                  key={u}
+                  onClick={() => setDisplayUnit(u)}
+                  className={`t-sm font-semibold px-3 py-1 rounded-lg border transition-all flex-1 ${
+                    displayUnit === u
+                      ? 'bg-orange-500/10 border-orange-500/50 text-orange-600'
+                      : 'border-border text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  {u}
+                </button>
+              ))}
+            </div>
+
           </div>
-
-          {/* Finish time — read-only */}
-          <div>
-            <p className="t-xs font-semibold text-slate-400 uppercase tracking-widest mb-0.5">Finish time</p>
-            <p className="t-lg font-bold text-slate-900">{predictedFinishTime}</p>
-          </div>
-
-          {/* km / mi toggle */}
-          <div className="flex gap-2">
-            {(['km', 'mi'] as const).map(u => (
-              <button
-                key={u}
-                onClick={() => setDisplayUnit(u)}
-                className={`t-sm font-semibold px-3 py-1 rounded-lg border transition-all flex-1 ${
-                  displayUnit === u
-                    ? 'bg-orange-500/10 border-orange-500/50 text-orange-600'
-                    : 'border-border text-slate-500 hover:text-slate-900'
-                }`}
-              >
-                {u}
-              </button>
-            ))}
-          </div>
-
         </div>
       </div>
     </div>
