@@ -26,22 +26,14 @@ const spectatorIcon = L.divIcon({
   className: '',
   html: `<div style="filter:drop-shadow(0 1px 4px rgba(0,0,0,0.4))">
     <svg width="26" height="18" viewBox="0 0 26 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <!-- Left barrel -->
       <rect x="1" y="1" width="8" height="8" rx="2" fill="#a855f7" stroke="white" stroke-width="1.3"/>
-      <!-- Right barrel -->
       <rect x="17" y="1" width="8" height="8" rx="2" fill="#a855f7" stroke="white" stroke-width="1.3"/>
-      <!-- Bridge fills gap -->
       <rect x="8.6" y="3" width="8.8" height="4.5" fill="#a855f7"/>
-      <!-- Bridge top/bottom lines -->
       <line x1="9" y1="3" x2="17" y2="3" stroke="white" stroke-width="1.3"/>
       <line x1="9" y1="7.5" x2="17" y2="7.5" stroke="white" stroke-width="1.3"/>
-      <!-- Left objective lens -->
       <circle cx="5" cy="13.5" r="4" fill="#a855f7" stroke="white" stroke-width="1.5"/>
-      <!-- Right objective lens -->
       <circle cx="21" cy="13.5" r="4" fill="#a855f7" stroke="white" stroke-width="1.5"/>
-      <!-- Lens glare left -->
       <circle cx="3.8" cy="12.3" r="1.4" fill="white" opacity="0.3"/>
-      <!-- Lens glare right -->
       <circle cx="19.8" cy="12.3" r="1.4" fill="white" opacity="0.3"/>
     </svg>
   </div>`,
@@ -50,13 +42,23 @@ const spectatorIcon = L.divIcon({
   popupAnchor: [0, -20],
 });
 
-// Below this zoom level, switch to side-panel label mode
 const ZOOM_THRESHOLD = 14;
 const LABEL_H = 22;
 const LABEL_GAP = 5;
 const PANEL_RIGHT = 10;
 const PANEL_W = 168;
-const MAP_H = 420;
+
+interface OverlayItem {
+  spot: SpotPrediction;
+  px: number;
+  py: number;
+  labelY: number;
+}
+
+interface OverlayData {
+  items: OverlayItem[];
+  panelLeft: number;
+}
 
 interface Props {
   gpxPoints: GpxPoint[];
@@ -75,13 +77,14 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
   const spectatorLayersRef = useRef<Map<string, L.Marker>>(new Map());
 
   const [zoom, setZoom] = useState(13);
+  const [overlayData, setOverlayData] = useState<OverlayData | null>(null);
 
   // Initialise map once
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
     const map = L.map(containerRef.current, {
-      center: [51.5, -0.08], // London
+      center: [51.5, -0.08],
       zoom: 13,
       zoomControl: true,
     });
@@ -94,21 +97,54 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
 
     mapRef.current = map;
 
-    // Track zoom/move so overlay recalculates
     const onViewChange = () => setZoom(map.getZoom());
-    map.on('zoomend moveend', onViewChange);
+    map.on('zoomend', onViewChange);
+    map.on('moveend', onViewChange);
 
     return () => {
-      map.off('zoomend moveend', onViewChange);
+      map.off('zoomend', onViewChange);
+      map.off('moveend', onViewChange);
       map.remove();
       mapRef.current = null;
     };
   }, []);
 
-  // Toggle CSS class to hide permanent tooltips in zoomed-out panel mode
+  // Toggle CSS class to hide permanent tooltips in panel mode
   useEffect(() => {
     containerRef.current?.classList.toggle('zoomed-out', zoom < ZOOM_THRESHOLD);
   }, [zoom]);
+
+  // Compute side-panel overlay after DOM is stable (useEffect, not inline render)
+  useEffect(() => {
+    const map = mapRef.current;
+    const wrapper = wrapperRef.current;
+
+    if (!map || !wrapper || zoom >= ZOOM_THRESHOLD || spectatorPredictions.length === 0) {
+      setOverlayData(null);
+      return;
+    }
+
+    const containerW = wrapper.offsetWidth;
+    const containerH = wrapper.offsetHeight;
+    const panelLeft = containerW - PANEL_W - PANEL_RIGHT;
+
+    const withPixels = spectatorPredictions
+      .map(spot => {
+        const pt = map.latLngToContainerPoint([spot.lat, spot.lng]);
+        return { spot, px: Math.round(pt.x), py: Math.round(pt.y) };
+      })
+      .sort((a, b) => a.py - b.py);
+
+    const totalH = withPixels.length * LABEL_H + (withPixels.length - 1) * LABEL_GAP;
+    const panelTop = Math.max(8, (containerH - totalH) / 2);
+
+    const items: OverlayItem[] = withPixels.map((item, i) => ({
+      ...item,
+      labelY: panelTop + i * (LABEL_H + LABEL_GAP),
+    }));
+
+    setOverlayData({ items, panelLeft });
+  }, [zoom, spectatorPredictions]);
 
   // Draw GPX route
   useEffect(() => {
@@ -213,9 +249,7 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
       const popupHtml = `
         <div style="font-family:system-ui,sans-serif;min-width:200px;max-width:240px;color:#0f172a">
           <div style="font-size:13px;font-weight:700;margin-bottom:2px">${spot.name}</div>
-          <div style="font-size:10px;color:#64748b;margin-bottom:4px">
-            Mile ${spot.distanceMile} · ${spot.distanceKm} km
-          </div>
+          <div style="font-size:10px;color:#64748b;margin-bottom:4px">Mile ${spot.distanceMile} · ${spot.distanceKm} km</div>
           ${timeHtml}
           <div style="font-size:11px;color:#334155;margin-bottom:6px">${spot.description}</div>
           <div style="font-size:10px;color:#ea580c;font-weight:600;margin-bottom:2px">Nearest stations</div>
@@ -235,34 +269,6 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
     }
   }, [spectatorPredictions]);
 
-  // --- Compute side-panel overlay items when zoomed out ---
-  const isZoomedOut = zoom < ZOOM_THRESHOLD;
-
-  type OverlayItem = { spot: SpotPrediction; px: number; py: number; labelY: number };
-  let overlayItems: OverlayItem[] = [];
-  let panelLeft = 0;
-
-  if (isZoomedOut && mapRef.current && spectatorPredictions.length > 0) {
-    const map = mapRef.current;
-    const containerW = wrapperRef.current?.offsetWidth ?? 600;
-    panelLeft = containerW - PANEL_W - PANEL_RIGHT;
-
-    const withPixels = spectatorPredictions
-      .map(spot => {
-        const pt = map.latLngToContainerPoint([spot.lat, spot.lng]);
-        return { spot, px: Math.round(pt.x), py: Math.round(pt.y) };
-      })
-      .sort((a, b) => a.py - b.py); // top-to-bottom on map → no label crossing
-
-    const totalH = withPixels.length * LABEL_H + (withPixels.length - 1) * LABEL_GAP;
-    const panelTop = Math.max(8, (MAP_H - totalH) / 2);
-
-    overlayItems = withPixels.map((item, i) => ({
-      ...item,
-      labelY: panelTop + i * (LABEL_H + LABEL_GAP),
-    }));
-  }
-
   return (
     <div className="bg-surface rounded-2xl border border-border overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
@@ -275,39 +281,34 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
         </div>
       </div>
 
-      <div ref={wrapperRef} className="relative" style={{ height: MAP_H }}>
+      <div ref={wrapperRef} className="relative" style={{ height: '80vh' }}>
         <div ref={containerRef} style={{ height: '100%' }} />
 
-        {/* Zoomed-out: side panel with leader lines */}
-        {isZoomedOut && overlayItems.length > 0 && (
+        {/* Zoomed-out: stacked side panel with leader lines */}
+        {overlayData && (
           <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 900, overflow: 'hidden' }}>
-            {/* SVG leader lines */}
             <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
-              {overlayItems.map(item => {
-                const labelMidY = item.labelY + LABEL_H / 2;
-                return (
-                  <g key={item.spot.id}>
-                    <circle cx={item.px} cy={item.py} r="3.5" fill="#a855f7" opacity="0.85" />
-                    <line
-                      x1={item.px} y1={item.py}
-                      x2={panelLeft} y2={labelMidY}
-                      stroke="#a855f7" strokeWidth="1" strokeOpacity="0.4" strokeDasharray="3 2"
-                    />
-                  </g>
-                );
-              })}
+              {overlayData.items.map(item => (
+                <g key={item.spot.id}>
+                  <circle cx={item.px} cy={item.py} r="3.5" fill="#a855f7" opacity="0.85" />
+                  <line
+                    x1={item.px} y1={item.py}
+                    x2={overlayData.panelLeft} y2={item.labelY + LABEL_H / 2}
+                    stroke="#a855f7" strokeWidth="1" strokeOpacity="0.4" strokeDasharray="3 2"
+                  />
+                </g>
+              ))}
             </svg>
 
-            {/* Stacked label panel */}
             <div style={{
               position: 'absolute',
               right: PANEL_RIGHT,
-              top: overlayItems[0].labelY,
+              top: overlayData.items[0]?.labelY ?? 8,
               display: 'flex',
               flexDirection: 'column',
               gap: LABEL_GAP,
             }}>
-              {overlayItems.map(item => (
+              {overlayData.items.map(item => (
                 <div key={item.spot.id} style={{
                   height: LABEL_H,
                   display: 'flex',
