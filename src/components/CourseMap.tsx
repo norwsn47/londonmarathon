@@ -21,7 +21,6 @@ const officialDot = L.divIcon({
   popupAnchor: [0, -8],
 });
 
-// Binoculars icon for spectator viewing spots
 const spectatorIcon = L.divIcon({
   className: '',
   html: `<div style="filter:drop-shadow(0 1px 4px rgba(0,0,0,0.4))">
@@ -42,18 +41,16 @@ const spectatorIcon = L.divIcon({
   popupAnchor: [0, -20],
 });
 
-const ZOOM_THRESHOLD = 14;
-
-// Condensed popup for zoomed-out overview
-function condensedPopup(spot: SpotPrediction): string {
-  return `<div style="font-family:system-ui,sans-serif;min-width:120px;color:#0f172a">
-    <div style="font-size:11px;font-weight:700;margin-bottom:1px">${spot.name}</div>
-    <div style="font-size:9px;color:#64748b">Mile ${spot.distanceMile} · ${spot.distanceKm} km</div>
-    ${spot.clockTime ? `<div style="font-size:12px;font-weight:700;color:#ea580c;margin-top:2px">${spot.clockTime}</div>` : ''}
-  </div>`;
+function createNumberedIcon(n: number): L.DivIcon {
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:20px;height:20px;background:#a855f7;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.4);color:white;font-size:9px;font-weight:700;font-family:system-ui,sans-serif;text-align:center;line-height:16px">${n}</div>`,
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
+    popupAnchor: [0, -12],
+  });
 }
 
-// Full popup for zoomed-in detail
 function fullPopup(spot: SpotPrediction): string {
   const timeHtml = spot.clockTime
     ? `<div style="font-size:15px;font-weight:bold;color:#ea580c;margin:4px 0">🕐 ${spot.clockTime}</div>`
@@ -72,6 +69,8 @@ function fullPopup(spot: SpotPrediction): string {
   </div>`;
 }
 
+const ZOOM_THRESHOLD = 14;
+
 interface Props {
   gpxPoints: GpxPoint[];
   markers: CourseMarker[];
@@ -89,6 +88,9 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
   const spectatorLayersRef = useRef<Map<string, L.Marker>>(new Map());
 
   const [zoom, setZoom] = useState(13);
+
+  // Spots sorted by course distance — defines numbering 1–N
+  const sortedSpots = [...spectatorPredictions].sort((a, b) => a.distanceKm - b.distanceKm);
 
   // Initialise map once
   useEffect(() => {
@@ -127,22 +129,17 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
     containerRef.current?.classList.toggle('zoomed-out', zoom < ZOOM_THRESHOLD);
   }, [zoom]);
 
-  // Open/close condensed popups based on zoom level
+  // Swap icons between numbered (zoomed out) and binoculars (zoomed in)
   useEffect(() => {
+    const sorted = [...spectatorPredictions].sort((a, b) => a.distanceKm - b.distanceKm);
     if (zoom < ZOOM_THRESHOLD) {
-      // Open all spectator popups with condensed content
-      for (const [id, layer] of spectatorLayersRef.current) {
-        const spot = spectatorPredictions.find(s => s.id === id);
-        if (!spot) continue;
-        layer.setPopupContent(condensedPopup(spot));
-        layer.openPopup();
-      }
+      sorted.forEach((spot, i) => {
+        spectatorLayersRef.current.get(spot.id)?.setIcon(createNumberedIcon(i + 1));
+      });
     } else {
-      // Close auto-opened popups and restore full content
-      for (const [id, layer] of spectatorLayersRef.current) {
+      for (const [, layer] of spectatorLayersRef.current) {
         layer.closePopup();
-        const spot = spectatorPredictions.find(s => s.id === id);
-        if (spot) layer.setPopupContent(fullPopup(spot));
+        layer.setIcon(spectatorIcon);
       }
     }
   }, [zoom, spectatorPredictions]);
@@ -242,7 +239,7 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
       if (spectatorLayersRef.current.has(spot.id)) continue;
 
       const layer = L.marker([spot.lat, spot.lng], { icon: spectatorIcon })
-        .bindPopup(fullPopup(spot), { maxWidth: 260, autoClose: false, closeOnClick: false })
+        .bindPopup(fullPopup(spot), { maxWidth: 260 })
         .bindTooltip(`${spot.name} · Mile ${spot.distanceMile}`, { permanent: true, direction: 'right', className: 'spectator-label', offset: [8, 0] })
         .addTo(map);
       spectatorLayersRef.current.set(spot.id, layer);
@@ -253,19 +250,70 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
     <div ref={wrapperRef} className="relative w-full h-full">
       <div ref={containerRef} style={{ height: '100%' }} />
 
-      {/* Small legend pill */}
-      <div style={{ position: 'absolute', bottom: 28, left: 8, zIndex: 900, pointerEvents: 'none' }}>
-        <span style={{
-          display: 'inline-flex', alignItems: 'center', gap: 5,
-          background: 'rgba(255,255,255,0.92)', border: '1px solid #e2e8f0',
-          borderRadius: 6, padding: '3px 8px',
-          fontSize: 10, fontWeight: 600, color: '#7c3aed',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      {/* Zoomed-out: numbered key panel along the left edge */}
+      {zoom < ZOOM_THRESHOLD && sortedSpots.length > 0 && (
+        <div style={{
+          position: 'absolute',
+          left: 8,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          zIndex: 900,
+          pointerEvents: 'none',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 4,
         }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#a855f7', flexShrink: 0 }} />
-          Viewing spots
-        </span>
-      </div>
+          {sortedSpots.map((spot, i) => (
+            <div key={spot.id} style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              background: 'rgba(255,255,255,0.93)',
+              border: '1px solid #e2e8f0',
+              borderRadius: 6,
+              padding: '4px 8px 4px 5px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+              whiteSpace: 'nowrap',
+            }}>
+              {/* Number badge */}
+              <span style={{
+                width: 16, height: 16, borderRadius: '50%',
+                background: '#a855f7', color: 'white',
+                fontSize: 9, fontWeight: 700,
+                fontFamily: 'system-ui,sans-serif',
+                textAlign: 'center', lineHeight: '16px',
+                flexShrink: 0,
+              }}>{i + 1}</span>
+              {/* Name */}
+              <span style={{ fontSize: 10, fontWeight: 600, color: '#334155', maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {spot.name}
+              </span>
+              {/* Mile marker */}
+              <span style={{ fontSize: 9, color: '#94a3b8', flexShrink: 0 }}>Mi {spot.distanceMile}</span>
+              {/* Predicted time */}
+              {spot.clockTime && (
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#ea580c', flexShrink: 0 }}>{spot.clockTime}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Zoomed-in: small legend pill */}
+      {zoom >= ZOOM_THRESHOLD && (
+        <div style={{ position: 'absolute', bottom: 28, left: 8, zIndex: 900, pointerEvents: 'none' }}>
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            background: 'rgba(255,255,255,0.92)', border: '1px solid #e2e8f0',
+            borderRadius: 6, padding: '3px 8px',
+            fontSize: 10, fontWeight: 600, color: '#7c3aed',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+          }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#a855f7', flexShrink: 0 }} />
+            Viewing spots
+          </span>
+        </div>
+      )}
     </div>
   );
 }
