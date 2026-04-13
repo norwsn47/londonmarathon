@@ -69,7 +69,7 @@ export default function CourseMap({ gpxPoints, markers, positionKm, onMapClick, 
       zoomControl: true,
     });
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
       attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/">CARTO</a>',
       subdomains: 'abcd',
       maxZoom: 19,
@@ -191,22 +191,22 @@ export default function CourseMap({ gpxPoints, markers, positionKm, onMapClick, 
 
       // Build popup HTML
       const timeHtml = spot.clockTime
-        ? `<div style="font-size:15px;font-weight:bold;color:#f97316;margin:4px 0">🕐 ${spot.clockTime}</div>`
+        ? `<div style="font-size:15px;font-weight:bold;color:#ea580c;margin:4px 0">🕐 ${spot.clockTime}</div>`
         : '';
       const stationsHtml = spot.nearestStations
-        .map(s => `<span style="display:inline-block;background:#1e293b;border-radius:4px;padding:1px 5px;margin:2px 2px 0 0;font-size:10px">${s}</span>`)
+        .map(s => `<span style="display:inline-block;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5px;margin:2px 2px 0 0;font-size:10px;color:#334155">${s}</span>`)
         .join('');
       const popupHtml = `
-        <div style="font-family:system-ui,sans-serif;min-width:200px;max-width:240px;color:#e2e8f0">
+        <div style="font-family:system-ui,sans-serif;min-width:200px;max-width:240px;color:#0f172a">
           <div style="font-size:13px;font-weight:700;margin-bottom:2px">${spot.name}</div>
-          <div style="font-size:10px;color:#94a3b8;margin-bottom:4px">
+          <div style="font-size:10px;color:#64748b;margin-bottom:4px">
             Mile ${spot.distanceMile} · ${spot.distanceKm} km
           </div>
           ${timeHtml}
-          <div style="font-size:11px;color:#cbd5e1;margin-bottom:6px">${spot.description}</div>
-          <div style="font-size:10px;color:#f97316;font-weight:600;margin-bottom:2px">Nearest stations</div>
+          <div style="font-size:11px;color:#334155;margin-bottom:6px">${spot.description}</div>
+          <div style="font-size:10px;color:#ea580c;font-weight:600;margin-bottom:2px">Nearest stations</div>
           <div style="margin-bottom:6px">${stationsHtml}</div>
-          <div style="font-size:10px;color:#94a3b8;border-top:1px solid #1e293b;padding-top:4px">${spot.crowdNotes}</div>
+          <div style="font-size:10px;color:#64748b;border-top:1px solid #e2e8f0;padding-top:4px">${spot.crowdNotes}</div>
         </div>`;
 
       if (existing) {
@@ -232,7 +232,7 @@ export default function CourseMap({ gpxPoints, markers, positionKm, onMapClick, 
           </span>
         </div>
         {canAddMarkers && (
-          <p className="text-[11px] text-orange-400 font-semibold">Click map to add marker</p>
+          <p className="text-[11px] text-orange-600 font-semibold">Click map to add marker</p>
         )}
       </div>
       <div ref={containerRef} style={{ height: 420 }} />

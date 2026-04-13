@@ -18,19 +18,19 @@ export default function AddMarkerModal({ lat, lng, onSave, onCancel }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onCancel}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20" onClick={onCancel}>
       <div
-        className="bg-surface border border-border rounded-2xl shadow-2xl max-w-sm w-full p-5 animate-fade-in"
+        className="bg-surface border border-border rounded-2xl shadow-xl max-w-sm w-full p-5 animate-fade-in"
         onClick={e => e.stopPropagation()}
       >
-        <h3 className="text-sm font-bold text-white mb-1">Add marker</h3>
-        <p className="text-[11px] text-slate-500 mb-4 font-mono">
+        <h3 className="text-sm font-bold text-slate-900 mb-1">Add marker</h3>
+        <p className="text-[11px] text-slate-400 mb-4 font-mono">
           {lat.toFixed(5)}, {lng.toFixed(5)}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+            <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
               Title *
             </label>
             <input
@@ -41,11 +41,11 @@ export default function AddMarkerModal({ lat, lng, onSave, onCancel }: Props) {
               value={title}
               onChange={e => setTitle(e.target.value)}
               placeholder="e.g. Cheering point, Baggage, Water"
-              className="w-full bg-surface-2 border border-border rounded-xl px-3 py-2 text-sm text-white placeholder-slate-600 outline-none focus:border-orange-500/60 transition-colors"
+              className="w-full bg-surface-2 border border-border rounded-xl px-3 py-2 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-orange-500/60 transition-colors"
             />
           </div>
           <div>
-            <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+            <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
               Notes (optional)
             </label>
             <textarea
@@ -54,7 +54,7 @@ export default function AddMarkerModal({ lat, lng, onSave, onCancel }: Props) {
               onChange={e => setDescription(e.target.value)}
               placeholder="Any notes…"
               rows={2}
-              className="w-full bg-surface-2 border border-border rounded-xl px-3 py-2 text-sm text-white placeholder-slate-600 outline-none focus:border-orange-500/60 transition-colors resize-none"
+              className="w-full bg-surface-2 border border-border rounded-xl px-3 py-2 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-orange-500/60 transition-colors resize-none"
             />
           </div>
 
@@ -62,13 +62,13 @@ export default function AddMarkerModal({ lat, lng, onSave, onCancel }: Props) {
             <button
               type="button"
               onClick={onCancel}
-              className="flex-1 py-2 rounded-xl border border-border text-slate-400 text-sm font-semibold hover:text-white hover:border-slate-500 transition-colors"
+              className="flex-1 py-2 rounded-xl border border-border text-slate-500 text-sm font-semibold hover:text-slate-900 hover:border-slate-400 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 py-2 rounded-xl bg-orange-500 hover:bg-orange-400 text-white text-sm font-semibold transition-colors"
+              className="flex-1 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition-colors"
             >
               Save
             </button>

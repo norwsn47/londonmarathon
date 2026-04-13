@@ -20,10 +20,10 @@ export default function PositionSlider({ segments, elapsedSec, onChange }: Props
           Where am I?
         </p>
         <div className="flex items-center gap-3">
-          <span className="text-[11px] font-mono text-slate-400">
+          <span className="text-[11px] font-mono text-slate-500">
             {posKm.toFixed(1)} km
           </span>
-          <span className="text-[11px] font-mono text-orange-400 font-semibold">
+          <span className="text-[11px] font-mono text-orange-600 font-semibold">
             {formatDuration(elapsedSec)}
           </span>
         </div>
@@ -37,15 +37,15 @@ export default function PositionSlider({ segments, elapsedSec, onChange }: Props
         value={elapsedSec}
         onChange={e => onChange(Number(e.target.value))}
         style={{
-          background: `linear-gradient(to right, #f97316 ${pct}%, #2a2a3d ${pct}%)`,
+          background: `linear-gradient(to right, #f97316 ${pct}%, #e2e8f0 ${pct}%)`,
         }}
         className="w-full"
         aria-label="Elapsed race time"
       />
 
       <div className="flex justify-between mt-1">
-        <span className="text-[10px] text-slate-600">Start</span>
-        <span className="text-[10px] text-slate-600">Finish</span>
+        <span className="text-[10px] text-slate-400">Start</span>
+        <span className="text-[10px] text-slate-400">Finish</span>
       </div>
     </div>
   );

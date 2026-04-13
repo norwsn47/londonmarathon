@@ -9,7 +9,7 @@ export default function Header() {
           <path d="M16 10.5L10.5 17H14.5L12 22.5L19 15.5H15L16 10.5Z" fill="#f97316"/>
         </svg>
         <div>
-          <h1 className="text-lg font-bold text-white leading-tight tracking-tight">
+          <h1 className="text-lg font-bold text-slate-900 leading-tight tracking-tight">
             London Marathon Pacer
           </h1>
           <p className="text-xs text-slate-500 leading-none">Plan your perfect race</p>

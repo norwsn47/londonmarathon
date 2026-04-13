@@ -11,10 +11,10 @@ export default {
         mono: ['JetBrains Mono', 'monospace'],
       },
       colors: {
-        surface: '#16161f',
-        'surface-2': '#1e1e2a',
-        'surface-3': '#252534',
-        border: '#2a2a3d',
+        surface: '#ffffff',
+        'surface-2': '#f1f5f9',
+        'surface-3': '#e8edf3',
+        border: '#e2e8f0',
       },
       animation: {
         'fade-in': 'fadeIn 0.2s ease-out',

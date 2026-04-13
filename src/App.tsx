@@ -63,12 +63,14 @@ export default function App() {
 
   const allMarkers = useMemo(() => [...OFFICIAL_MARKERS, ...userMarkers], [userMarkers]);
 
-  // Default gun start time: 10:00 AM on an arbitrary day (only H:MM matters for display)
+  // Gun start time — user-configurable, default 10:00
+  const [startTimeStr, setStartTimeStr] = useState('10:00');
   const runnerStartTime = useMemo(() => {
+    const [h, m] = startTimeStr.split(':').map(Number);
     const d = new Date();
-    d.setHours(10, 0, 0, 0);
+    d.setHours(h, m, 0, 0);
     return d;
-  }, []);
+  }, [startTimeStr]);
 
   const spectatorPredictions = useMemo<SpotPrediction[]>(
     () => predictSpotTimes(runnerStartTime, displaySegments),
@@ -137,7 +139,7 @@ export default function App() {
   }, [targetSec, unit, negativePct]);
 
   return (
-    <div className="min-h-screen bg-[#0d0d12] text-slate-100 font-sans">
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
       <div className="max-w-2xl mx-auto px-4 pb-20">
         <Header />
 
@@ -158,15 +160,15 @@ export default function App() {
               onClick={() => setAddingMarker(v => !v)}
               className={`text-xs font-semibold px-3 py-1.5 rounded-xl border transition-all ${
                 addingMarker
-                  ? 'bg-orange-500/15 border-orange-500/50 text-orange-400'
-                  : 'bg-surface border-border text-slate-400 hover:border-slate-500 hover:text-white'
+                  ? 'bg-orange-500/10 border-orange-500/50 text-orange-600'
+                  : 'bg-surface border-border text-slate-500 hover:border-slate-400 hover:text-slate-900'
               }`}
             >
               {addingMarker ? '✕ Cancel' : '+ Add marker'}
             </button>
           </div>
 
-          {/* Target time presets */}
+          {/* Target time + gun start */}
           <div className="bg-surface rounded-2xl p-4 border border-border">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">
               Target Finish Time
@@ -183,8 +185,8 @@ export default function App() {
                   onClick={() => handleTargetChange(sec)}
                   className={`text-sm font-bold px-3 py-1.5 rounded-xl border transition-all ${
                     targetSec === sec
-                      ? 'bg-orange-500/20 border-orange-500/60 text-orange-400'
-                      : 'bg-surface-2 border-border text-slate-400 hover:border-slate-500 hover:text-white'
+                      ? 'bg-orange-500/10 border-orange-500/50 text-orange-600'
+                      : 'bg-surface-2 border-border text-slate-500 hover:border-slate-400 hover:text-slate-900'
                   }`}
                 >
                   {label}
@@ -198,14 +200,28 @@ export default function App() {
                     onClick={() => handleStrategySelect(s)}
                     className={`text-xs font-semibold px-2.5 py-1 rounded-lg border transition-all ${
                       strategy === s
-                        ? 'bg-orange-500/15 border-orange-500/50 text-orange-400'
-                        : 'border-border text-slate-500 hover:text-white'
+                        ? 'bg-orange-500/10 border-orange-500/50 text-orange-600'
+                        : 'border-border text-slate-500 hover:text-slate-900'
                     }`}
                   >
                     {s === 'even' ? 'Even' : 'Negative'}
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Gun start time */}
+            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest whitespace-nowrap">
+                Gun start
+              </label>
+              <input
+                type="time"
+                value={startTimeStr}
+                onChange={e => setStartTimeStr(e.target.value)}
+                className="ml-auto text-sm font-mono font-semibold text-slate-900 bg-surface-2 border border-border rounded-lg px-2 py-1 outline-none focus:border-orange-500/60 transition-colors"
+              />
+              <span className="text-xs text-slate-400">affects viewing-spot times</span>
             </div>
           </div>
 
@@ -224,14 +240,14 @@ export default function App() {
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-surface-2 rounded-xl p-3 border border-border">
                 <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Target</p>
-                <p className="text-sm font-bold font-mono text-white">{formatDuration(targetSec)}</p>
+                <p className="text-sm font-bold font-mono text-slate-900">{formatDuration(targetSec)}</p>
               </div>
               <div className="bg-surface-2 rounded-xl p-3 border border-border">
                 <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Projected</p>
                 <p className={`text-sm font-bold font-mono ${
-                  Math.abs(projectedSec - targetSec) < 15 ? 'text-white'
-                  : projectedSec < targetSec ? 'text-green-400'
-                  : 'text-red-400'
+                  Math.abs(projectedSec - targetSec) < 15 ? 'text-slate-900'
+                  : projectedSec < targetSec ? 'text-green-600'
+                  : 'text-red-500'
                 }`}>
                   {formatDuration(projectedSec)}
                 </p>

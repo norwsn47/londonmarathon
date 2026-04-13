@@ -6,17 +6,17 @@
 .leaflet-container {
   height: 100%;
   width: 100%;
-  background: #1e1e2a;
+  background: #e8edf3;
 }
 
-/* Dark tiles — Leaflet attribution */
+/* Light tiles — Leaflet attribution */
 .leaflet-control-attribution {
-  background: rgba(22, 22, 31, 0.8) !important;
+  background: rgba(255, 255, 255, 0.85) !important;
   color: #64748b !important;
   font-size: 10px !important;
 }
 .leaflet-control-attribution a {
-  color: #94a3b8 !important;
+  color: #475569 !important;
 }
 
 /* Range slider */
@@ -34,7 +34,8 @@ input[type='range']::-webkit-slider-thumb {
   height: 14px;
   border-radius: 9999px;
   background: #f97316;
-  border: 2px solid #0d0d12;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 1px #e2e8f0;
   cursor: pointer;
 }
 input[type='range']::-moz-range-thumb {
@@ -42,6 +43,6 @@ input[type='range']::-moz-range-thumb {
   height: 14px;
   border-radius: 9999px;
   background: #f97316;
-  border: 2px solid #0d0d12;
+  border: 2px solid #ffffff;
   cursor: pointer;
 }
