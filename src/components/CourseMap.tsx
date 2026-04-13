@@ -235,14 +235,26 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
       }
     }
 
-    for (const spot of spectatorPredictions) {
-      if (spectatorLayersRef.current.has(spot.id)) continue;
+    // Letter assigned by course-distance order (A = earliest)
+    const letterMap = new Map(
+      [...spectatorPredictions]
+        .sort((a, b) => a.distanceKm - b.distanceKm)
+        .map((spot, i) => [spot.id, String.fromCharCode(65 + i)])
+    );
 
-      const layer = L.marker([spot.lat, spot.lng], { icon: spectatorIcon })
-        .bindPopup(fullPopup(spot), { maxWidth: 260 })
-        .bindTooltip(`${spot.name} · Mile ${spot.distanceMile}`, { permanent: true, direction: 'right', className: 'spectator-label', offset: [8, 0] })
-        .addTo(map);
-      spectatorLayersRef.current.set(spot.id, layer);
+    for (const spot of spectatorPredictions) {
+      const letter = letterMap.get(spot.id) ?? '';
+      const existing = spectatorLayersRef.current.get(spot.id);
+
+      if (existing) {
+        existing.setPopupContent(fullPopup(spot));
+      } else {
+        const layer = L.marker([spot.lat, spot.lng], { icon: spectatorIcon })
+          .bindPopup(fullPopup(spot), { maxWidth: 260 })
+          .bindTooltip(`${letter} · ${spot.name} · Mile ${spot.distanceMile}`, { permanent: true, direction: 'right', className: 'spectator-label', offset: [8, 0] })
+          .addTo(map);
+        spectatorLayersRef.current.set(spot.id, layer);
+      }
     }
   }, [spectatorPredictions]);
 
@@ -266,33 +278,42 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
           {sortedSpots.map((spot, i) => (
             <div key={spot.id} style={{
               display: 'flex',
-              alignItems: 'center',
-              gap: 6,
+              flexDirection: 'column',
+              gap: 2,
               background: 'rgba(255,255,255,0.93)',
               border: '1px solid #e2e8f0',
               borderRadius: 6,
               padding: '4px 8px 4px 5px',
               boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-              whiteSpace: 'nowrap',
+              maxWidth: 220,
             }}>
-              {/* Letter badge */}
-              <span style={{
-                width: 16, height: 16, borderRadius: '50%',
-                background: '#a855f7', color: 'white',
-                fontSize: 9, fontWeight: 700,
-                fontFamily: 'system-ui,sans-serif',
-                textAlign: 'center', lineHeight: '16px',
-                flexShrink: 0,
-              }}>{String.fromCharCode(65 + i)}</span>
-              {/* Name */}
-              <span style={{ fontSize: 10, fontWeight: 600, color: '#334155', maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {spot.name}
-              </span>
-              {/* Mile marker */}
-              <span style={{ fontSize: 9, color: '#94a3b8', flexShrink: 0 }}>Mi {spot.distanceMile}</span>
-              {/* Predicted time */}
-              {spot.clockTime && (
-                <span style={{ fontSize: 10, fontWeight: 700, color: '#ea580c', flexShrink: 0 }}>{spot.clockTime}</span>
+              {/* Top row */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+                {/* Letter badge */}
+                <span style={{
+                  width: 16, height: 16, borderRadius: '50%',
+                  background: '#a855f7', color: 'white',
+                  fontSize: 9, fontWeight: 700,
+                  fontFamily: 'system-ui,sans-serif',
+                  textAlign: 'center', lineHeight: '16px',
+                  flexShrink: 0,
+                }}>{String.fromCharCode(65 + i)}</span>
+                {/* Name */}
+                <span style={{ fontSize: 10, fontWeight: 600, color: '#334155', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {spot.name}
+                </span>
+                {/* Mile marker */}
+                <span style={{ fontSize: 9, color: '#94a3b8', flexShrink: 0 }}>Mi {spot.distanceMile}</span>
+                {/* Predicted time */}
+                {spot.clockTime && (
+                  <span style={{ fontSize: 10, fontWeight: 700, color: '#ea580c', flexShrink: 0 }}>{spot.clockTime}</span>
+                )}
+              </div>
+              {/* Description */}
+              {spot.description && (
+                <div style={{ fontSize: 9, color: '#64748b', lineHeight: 1.35, whiteSpace: 'normal', paddingLeft: 22 }}>
+                  {spot.description.length > 80 ? spot.description.slice(0, 77) + '…' : spot.description}
+                </div>
               )}
             </div>
           ))}
