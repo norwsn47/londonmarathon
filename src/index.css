@@ -71,9 +71,12 @@
   display: none !important;
 }
 
-/* Hide scrollbar on the zoomed-out spectator key panel */
+/* Hide scrollbar on the zoomed-out spectator key panel (horizontal scroll) */
 .spectator-key-panel::-webkit-scrollbar {
   display: none;
+}
+.spectator-key-panel {
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Official course marker icon container */

@@ -313,21 +313,22 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
     <div ref={wrapperRef} className="relative w-full h-full">
       <div ref={containerRef} style={{ height: '100%' }} />
 
-      {/* Zoomed-out: numbered key panel along the left edge */}
+      {/* Zoomed-out: key panel as horizontal scrolling row along the bottom */}
       {zoom < ZOOM_THRESHOLD && sortedSpots.length > 0 && (
         <div className="spectator-key-panel" style={{
           position: 'absolute',
           left: 8,
-          top: 8,
+          right: 8,
           bottom: 8,
           zIndex: 900,
           pointerEvents: 'none',
           display: 'flex',
-          flexDirection: 'column',
-          gap: 4,
-          overflowY: 'auto',
-          overflowX: 'visible',
+          flexDirection: 'row',
+          gap: 6,
+          overflowX: 'auto',
+          overflowY: 'visible',
           scrollbarWidth: 'none',
+          paddingBottom: 2,
         }}>
           {sortedSpots.map((spot, i) => (
             <div
@@ -343,7 +344,8 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
                 borderRadius: 7,
                 padding: '5px 10px 5px 6px',
                 boxShadow: hoveredSpotId === spot.id ? '0 2px 8px rgba(168,85,247,0.25)' : '0 1px 3px rgba(0,0,0,0.1)',
-                maxWidth: 250,
+                width: 190,
+                flexShrink: 0,
                 pointerEvents: 'auto',
                 cursor: 'default',
                 transition: 'border-color 0.15s, box-shadow 0.15s, background 0.15s',
