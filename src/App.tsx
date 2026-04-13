@@ -10,15 +10,12 @@ import {
   formatDuration,
 } from './lib/paceUtils';
 import { parseGpx, type GpxPoint } from './lib/gpxParser';
-import { supabase } from './lib/supabase';
-import { useAuth } from './hooks/useAuth';
 import Header from './components/Header';
-import AuthModal from './components/AuthModal';
 import CourseMap from './components/CourseMap';
 import PositionSlider from './components/PositionSlider';
 import AddMarkerModal from './components/AddMarkerModal';
 
-// Pre-populated official course markers — edit / extend as needed
+// Pre-populated official course markers
 const OFFICIAL_MARKERS: CourseMarker[] = [
   { id: 'start',        lat: 51.4878,  lng:  0.0063,  title: 'Start Line',     description: 'Blackheath — Championship & Mass start', type: 'official' },
   { id: 'km10',         lat: 51.4938,  lng: -0.0518,  title: '10 km',          description: 'Charlton Way / Woolwich Road',            type: 'official' },
@@ -32,17 +29,6 @@ const OFFICIAL_MARKERS: CourseMarker[] = [
 const DEFAULT_TARGET = 4 * 3600;
 
 export default function App() {
-  const { user, loading: authLoading } = useAuth();
-
-  // Auth modal
-  const [showAuth, setShowAuth] = useState(false);
-  const [authReason, setAuthReason] = useState<string | undefined>();
-
-  function promptSignIn(reason?: string) {
-    setAuthReason(reason);
-    setShowAuth(true);
-  }
-
   // Pace plan state
   const [targetSec, setTargetSec] = useState(DEFAULT_TARGET);
   const [unit] = useState<Unit>('km');
@@ -87,48 +73,37 @@ export default function App() {
       .catch(() => { /* GPX not yet uploaded to /public */ });
   }, []);
 
-  // Load this user's saved markers from Supabase
+  // Load user markers from API
   useEffect(() => {
-    if (!user) { setUserMarkers([]); return; }
-    supabase
-      .from('markers')
-      .select('*')
-      .eq('created_by', user.id)
-      .then(({ data }) => {
-        if (data) setUserMarkers(data as CourseMarker[]);
-      });
-  }, [user]);
-
-  // When auth modal closes after sign-in, resume any pending action
-  useEffect(() => {
-    if (user && showAuth) setShowAuth(false);
-  }, [user, showAuth]);
-
-  function handleAddMarkerClick() {
-    if (!user) {
-      promptSignIn('Sign in to save markers on the course');
-      return;
-    }
-    setAddingMarker(v => !v);
-  }
+    fetch('/api/markers')
+      .then(r => r.json() as Promise<CourseMarker[]>)
+      .then(data => { if (Array.isArray(data)) setUserMarkers(data); })
+      .catch(() => { /* API not available in dev without wrangler */ });
+  }, []);
 
   const handleMapClick = useCallback((lat: number, lng: number) => {
-    if (!addingMarker || !user) return;
+    if (!addingMarker) return;
     setPendingLatLng({ lat, lng });
-  }, [addingMarker, user]);
+  }, [addingMarker]);
 
   async function saveMarker(title: string, description: string) {
-    if (!pendingLatLng || !user) return;
-    const newMarker = {
-      lat: pendingLatLng.lat,
-      lng: pendingLatLng.lng,
-      title,
-      description,
-      type: 'user' as const,
-      created_by: user.id,
-    };
-    const { data, error } = await supabase.from('markers').insert(newMarker).select().single();
-    if (!error && data) setUserMarkers(prev => [...prev, data as CourseMarker]);
+    if (!pendingLatLng) return;
+    try {
+      const res = await fetch('/api/markers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lat: pendingLatLng.lat,
+          lng: pendingLatLng.lng,
+          title,
+          description,
+        }),
+      });
+      if (res.ok) {
+        const saved = await res.json() as CourseMarker;
+        setUserMarkers(prev => [...prev, saved]);
+      }
+    } catch { /* ignore */ }
     setPendingLatLng(null);
     setAddingMarker(false);
   }
@@ -148,19 +123,10 @@ export default function App() {
     }
   }, [targetSec, unit, negativePct]);
 
-  // Brief loading spinner while Supabase checks for an existing session
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-[#0d0d12] flex items-center justify-center">
-        <div className="text-slate-500 text-sm">Loading…</div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-[#0d0d12] text-slate-100 font-sans">
       <div className="max-w-2xl mx-auto px-4 pb-20">
-        <Header user={user} onSignInClick={() => promptSignIn()} />
+        <Header />
 
         <div className="space-y-4">
           {/* Course map */}
@@ -172,31 +138,18 @@ export default function App() {
             canAddMarkers={addingMarker}
           />
 
-          {/* Add marker / login prompt */}
-          <div className="flex items-center justify-between">
-            {!user && (
-              <p className="text-xs text-slate-500">
-                <button
-                  onClick={() => promptSignIn('Sign in to save your own markers')}
-                  className="text-orange-400 hover:text-orange-300 underline underline-offset-2 transition-colors"
-                >
-                  Sign in
-                </button>
-                {' '}to add your own markers
-              </p>
-            )}
-            <div className="ml-auto">
-              <button
-                onClick={handleAddMarkerClick}
-                className={`text-xs font-semibold px-3 py-1.5 rounded-xl border transition-all ${
-                  addingMarker
-                    ? 'bg-orange-500/15 border-orange-500/50 text-orange-400'
-                    : 'bg-surface border-border text-slate-400 hover:border-slate-500 hover:text-white'
-                }`}
-              >
-                {addingMarker ? '✕ Cancel' : '+ Add marker'}
-              </button>
-            </div>
+          {/* Add marker button */}
+          <div className="flex items-center justify-end">
+            <button
+              onClick={() => setAddingMarker(v => !v)}
+              className={`text-xs font-semibold px-3 py-1.5 rounded-xl border transition-all ${
+                addingMarker
+                  ? 'bg-orange-500/15 border-orange-500/50 text-orange-400'
+                  : 'bg-surface border-border text-slate-400 hover:border-slate-500 hover:text-white'
+              }`}
+            >
+              {addingMarker ? '✕ Cancel' : '+ Add marker'}
+            </button>
           </div>
 
           {/* Target time presets */}
@@ -274,10 +227,7 @@ export default function App() {
         </div>
       </div>
 
-      {/* Modals */}
-      {showAuth && (
-        <AuthModal reason={authReason} onClose={() => setShowAuth(false)} />
-      )}
+      {/* Add marker modal */}
       {pendingLatLng && (
         <AddMarkerModal
           lat={pendingLatLng.lat}

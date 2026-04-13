@@ -1,18 +1,6 @@
-import { supabase } from '../lib/supabase';
-import type { User } from '@supabase/supabase-js';
-
-interface Props {
-  user: User | null;
-  onSignInClick: () => void;
-}
-
-export default function Header({ user, onSignInClick }: Props) {
-  async function handleSignOut() {
-    await supabase.auth.signOut();
-  }
-
+export default function Header() {
   return (
-    <header className="flex items-center justify-between py-5 mb-2">
+    <header className="flex items-center py-5 mb-2">
       <div className="flex items-center gap-2.5">
         <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
           <circle cx="14" cy="16" r="10" stroke="#f97316" strokeWidth="2"/>
@@ -27,25 +15,6 @@ export default function Header({ user, onSignInClick }: Props) {
           <p className="text-xs text-slate-500 leading-none">Plan your perfect race</p>
         </div>
       </div>
-
-      {user ? (
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-slate-500 hidden sm:block truncate max-w-[160px]">{user.email}</span>
-          <button
-            onClick={handleSignOut}
-            className="text-xs font-semibold text-slate-400 hover:text-white border border-border hover:border-slate-500 px-3 py-1.5 rounded-lg transition-all"
-          >
-            Sign out
-          </button>
-        </div>
-      ) : (
-        <button
-          onClick={onSignInClick}
-          className="text-xs font-semibold text-orange-400 hover:text-orange-300 border border-orange-500/40 hover:border-orange-400/60 px-3 py-1.5 rounded-lg transition-all"
-        >
-          Sign in
-        </button>
-      )}
     </header>
   );
 }

@@ -16,5 +16,4 @@ export interface CourseMarker {
   title: string;
   description: string;
   type: 'official' | 'user';
-  created_by?: string; // user id
 }
