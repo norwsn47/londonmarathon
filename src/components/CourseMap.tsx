@@ -13,40 +13,18 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-/** Bearing of the GPX route (degrees, clockwise from north) at the point nearest to lat/lng */
-function getRouteBearingDeg(gpxPoints: GpxPoint[], lat: number, lng: number): number {
-  if (gpxPoints.length < 2) return 0;
-  let minDist = Infinity;
-  let closestIdx = 0;
-  for (let i = 0; i < gpxPoints.length; i++) {
-    const d = (gpxPoints[i].lat - lat) ** 2 + (gpxPoints[i].lng - lng) ** 2;
-    if (d < minDist) { minDist = d; closestIdx = i; }
-  }
-  // Average over a window of ±5 points for a smooth bearing
-  const p1 = gpxPoints[Math.max(0, closestIdx - 5)];
-  const p2 = gpxPoints[Math.min(gpxPoints.length - 1, closestIdx + 5)];
-  return (Math.atan2(p2.lng - p1.lng, p2.lat - p1.lat) * 180 / Math.PI + 360) % 360;
-}
-
-/**
- * Tick icon perpendicular to the route at a given bearing.
- * The SVG line is rotated by `bearing` degrees so it crosses the route at 90°.
- * The text label is always horizontal (not rotated).
- */
-function createOfficialIcon(title: string, bearing = 0): L.DivIcon {
+function createOfficialIcon(title: string): L.DivIcon {
   return L.divIcon({
     className: 'official-marker-icon',
-    html: `<div style="position:relative;width:16px;height:16px">
-      <div style="position:absolute;top:0;left:0;width:16px;height:16px;transform:rotate(${bearing}deg)">
-        <svg width="16" height="16" viewBox="-8 -8 16 16" style="display:block;overflow:visible">
-          <line x1="0" y1="-8" x2="0" y2="8" stroke="#f97316" stroke-width="2.5" stroke-linecap="round"/>
-        </svg>
-      </div>
+    html: `<div style="position:relative;width:12px;height:12px">
+      <svg width="12" height="12" viewBox="0 0 12 12" style="display:block;overflow:visible">
+        <polygon points="6,0 12,6 6,12 0,6" fill="#f97316" stroke="white" stroke-width="1.5"/>
+      </svg>
       <span style="position:absolute;top:14px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:var(--text-xs);font-weight:700;color:#f97316;font-family:system-ui,sans-serif;letter-spacing:0.02em;text-shadow:0 1px 0 white,0 -1px 0 white,1px 0 0 white,-1px 0 0 white,0 0 5px rgba(255,255,255,0.9)">${title}</span>
     </div>`,
-    iconSize: [16, 16],
-    iconAnchor: [8, 8],
-    popupAnchor: [0, -12],
+    iconSize: [12, 12],
+    iconAnchor: [6, 6],
+    popupAnchor: [0, -10],
   });
 }
 
@@ -211,7 +189,7 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
     map.fitBounds(polyline.getBounds(), { padding: [32, 32] });
   }, [gpxPoints]);
 
-  // Draw course markers — reruns when gpxPoints loads so bearings update
+  // Draw course markers
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -224,23 +202,17 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
     }
 
     for (const marker of markers) {
-      const bearing = getRouteBearingDeg(gpxPoints, marker.lat, marker.lng);
-      const existing = markerLayersRef.current.get(marker.id);
-      if (existing) {
-        // Update tick rotation once GPX is available
-        existing.setIcon(createOfficialIcon(marker.title, bearing));
-        continue;
-      }
+      if (markerLayersRef.current.has(marker.id)) continue;
       const popupHtml = `<div style="font-family:system-ui,sans-serif;min-width:140px;color:#0f172a">
         <div style="font-size:var(--text-sm);font-weight:700">${marker.title}</div>
         ${marker.description ? `<div style="font-size:var(--text-xs);color:#64748b;margin-top:2px">${marker.description}</div>` : ''}
       </div>`;
-      const layer = L.marker([marker.lat, marker.lng], { icon: createOfficialIcon(marker.title, bearing) })
+      const layer = L.marker([marker.lat, marker.lng], { icon: createOfficialIcon(marker.title) })
         .bindPopup(popupHtml, { maxWidth: 260 })
         .addTo(map);
       markerLayersRef.current.set(marker.id, layer);
     }
-  }, [markers, gpxPoints]);
+  }, [markers]);
 
   // Draw runner position
   useEffect(() => {
