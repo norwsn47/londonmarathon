@@ -51,6 +51,16 @@ function createLetterIcon(letter: string): L.DivIcon {
   });
 }
 
+function createLetterIconGlowing(letter: string): L.DivIcon {
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:28px;height:28px;background:#a855f7;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 5px rgba(168,85,247,0.4),0 0 18px 6px rgba(168,85,247,0.55);color:white;font-size:12px;font-weight:700;font-family:system-ui,sans-serif;text-align:center;line-height:24px">${letter}</div>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+    popupAnchor: [0, -16],
+  });
+}
+
 function fullPopup(spot: SpotPrediction): string {
   const timeHtml = spot.clockTime
     ? `<div style="font-size:15px;font-weight:bold;color:#ea580c;margin:4px 0">🕐 ${spot.clockTime}</div>`
@@ -88,6 +98,7 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
   const spectatorLayersRef = useRef<Map<string, L.Marker>>(new Map());
 
   const [zoom, setZoom] = useState(13);
+  const [hoveredSpotId, setHoveredSpotId] = useState<string | null>(null);
 
   // Spots sorted by course distance — defines numbering 1–N
   const sortedSpots = [...spectatorPredictions].sort((a, b) => a.distanceKm - b.distanceKm);
@@ -129,12 +140,15 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
     containerRef.current?.classList.toggle('zoomed-out', zoom < ZOOM_THRESHOLD);
   }, [zoom]);
 
-  // Swap icons between numbered (zoomed out) and binoculars (zoomed in)
+  // Swap icons: zoomed-out → lettered (glow on hover); zoomed-in → binoculars
   useEffect(() => {
     const sorted = [...spectatorPredictions].sort((a, b) => a.distanceKm - b.distanceKm);
     if (zoom < ZOOM_THRESHOLD) {
       sorted.forEach((spot, i) => {
-        spectatorLayersRef.current.get(spot.id)?.setIcon(createLetterIcon(String.fromCharCode(65 + i)));
+        const layer = spectatorLayersRef.current.get(spot.id);
+        if (!layer) return;
+        const letter = String.fromCharCode(65 + i);
+        layer.setIcon(hoveredSpotId === spot.id ? createLetterIconGlowing(letter) : createLetterIcon(letter));
       });
     } else {
       for (const [, layer] of spectatorLayersRef.current) {
@@ -142,7 +156,7 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
         layer.setIcon(spectatorIcon);
       }
     }
-  }, [zoom, spectatorPredictions]);
+  }, [zoom, spectatorPredictions, hoveredSpotId]);
 
   // Draw GPX route
   useEffect(() => {
@@ -276,42 +290,49 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
           gap: 4,
         }}>
           {sortedSpots.map((spot, i) => (
-            <div key={spot.id} style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 2,
-              background: 'rgba(255,255,255,0.93)',
-              border: '1px solid #e2e8f0',
-              borderRadius: 6,
-              padding: '4px 8px 4px 5px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-              maxWidth: 220,
-            }}>
+            <div
+              key={spot.id}
+              onMouseEnter={() => setHoveredSpotId(spot.id)}
+              onMouseLeave={() => setHoveredSpotId(null)}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 3,
+                background: hoveredSpotId === spot.id ? 'rgba(245,240,255,0.97)' : 'rgba(255,255,255,0.93)',
+                border: hoveredSpotId === spot.id ? '1px solid #a855f7' : '1px solid #e2e8f0',
+                borderRadius: 7,
+                padding: '5px 10px 5px 6px',
+                boxShadow: hoveredSpotId === spot.id ? '0 2px 8px rgba(168,85,247,0.25)' : '0 1px 3px rgba(0,0,0,0.1)',
+                maxWidth: 250,
+                pointerEvents: 'auto',
+                cursor: 'default',
+                transition: 'border-color 0.15s, box-shadow 0.15s, background 0.15s',
+              }}>
               {/* Top row */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, whiteSpace: 'nowrap' }}>
                 {/* Letter badge */}
                 <span style={{
-                  width: 16, height: 16, borderRadius: '50%',
+                  width: 19, height: 19, borderRadius: '50%',
                   background: '#a855f7', color: 'white',
-                  fontSize: 9, fontWeight: 700,
+                  fontSize: 11, fontWeight: 700,
                   fontFamily: 'system-ui,sans-serif',
-                  textAlign: 'center', lineHeight: '16px',
+                  textAlign: 'center', lineHeight: '19px',
                   flexShrink: 0,
                 }}>{String.fromCharCode(65 + i)}</span>
                 {/* Name */}
-                <span style={{ fontSize: 10, fontWeight: 600, color: '#334155', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {spot.name}
                 </span>
                 {/* Mile marker */}
-                <span style={{ fontSize: 9, color: '#94a3b8', flexShrink: 0 }}>Mi {spot.distanceMile}</span>
+                <span style={{ fontSize: 11, color: '#94a3b8', flexShrink: 0 }}>Mi {spot.distanceMile}</span>
                 {/* Predicted time */}
                 {spot.clockTime && (
-                  <span style={{ fontSize: 10, fontWeight: 700, color: '#ea580c', flexShrink: 0 }}>{spot.clockTime}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#ea580c', flexShrink: 0 }}>{spot.clockTime}</span>
                 )}
               </div>
               {/* Description */}
               {spot.description && (
-                <div style={{ fontSize: 9, color: '#64748b', lineHeight: 1.35, whiteSpace: 'normal', paddingLeft: 22 }}>
+                <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.35, whiteSpace: 'normal', paddingLeft: 26 }}>
                   {spot.description.length > 80 ? spot.description.slice(0, 77) + '…' : spot.description}
                 </div>
               )}
