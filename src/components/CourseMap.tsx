@@ -41,10 +41,10 @@ const spectatorIcon = L.divIcon({
   popupAnchor: [0, -20],
 });
 
-function createNumberedIcon(n: number): L.DivIcon {
+function createLetterIcon(letter: string): L.DivIcon {
   return L.divIcon({
     className: '',
-    html: `<div style="width:20px;height:20px;background:#a855f7;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.4);color:white;font-size:9px;font-weight:700;font-family:system-ui,sans-serif;text-align:center;line-height:16px">${n}</div>`,
+    html: `<div style="width:20px;height:20px;background:#a855f7;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.4);color:white;font-size:9px;font-weight:700;font-family:system-ui,sans-serif;text-align:center;line-height:16px">${letter}</div>`,
     iconSize: [20, 20],
     iconAnchor: [10, 10],
     popupAnchor: [0, -12],
@@ -134,7 +134,7 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
     const sorted = [...spectatorPredictions].sort((a, b) => a.distanceKm - b.distanceKm);
     if (zoom < ZOOM_THRESHOLD) {
       sorted.forEach((spot, i) => {
-        spectatorLayersRef.current.get(spot.id)?.setIcon(createNumberedIcon(i + 1));
+        spectatorLayersRef.current.get(spot.id)?.setIcon(createLetterIcon(String.fromCharCode(65 + i)));
       });
     } else {
       for (const [, layer] of spectatorLayersRef.current) {
@@ -275,7 +275,7 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
               boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
               whiteSpace: 'nowrap',
             }}>
-              {/* Number badge */}
+              {/* Letter badge */}
               <span style={{
                 width: 16, height: 16, borderRadius: '50%',
                 background: '#a855f7', color: 'white',
@@ -283,7 +283,7 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
                 fontFamily: 'system-ui,sans-serif',
                 textAlign: 'center', lineHeight: '16px',
                 flexShrink: 0,
-              }}>{i + 1}</span>
+              }}>{String.fromCharCode(65 + i)}</span>
               {/* Name */}
               <span style={{ fontSize: 10, fontWeight: 600, color: '#334155', maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {spot.name}
