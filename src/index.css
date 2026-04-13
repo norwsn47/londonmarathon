@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Leaflet map container must have an explicit height */
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  background: #1e1e2a;
+}
+
+/* Dark tiles — Leaflet attribution */
+.leaflet-control-attribution {
+  background: rgba(22, 22, 31, 0.8) !important;
+  color: #64748b !important;
+  font-size: 10px !important;
+}
+.leaflet-control-attribution a {
+  color: #94a3b8 !important;
+}
+
+/* Range slider */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  outline: none;
+  cursor: pointer;
+}
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: #f97316;
+  border: 2px solid #0d0d12;
+  cursor: pointer;
+}
+input[type='range']::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: #f97316;
+  border: 2px solid #0d0d12;
+  cursor: pointer;
+}
