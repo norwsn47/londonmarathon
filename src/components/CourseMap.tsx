@@ -65,28 +65,28 @@ function createLetterIcon(letter: string, glowing = false): L.DivIcon {
   });
 }
 
-function fullPopup(spot: SpotPrediction, unit: 'km' | 'mi'): string {
-  const distLabel = unit === 'mi'
-    ? `Mile ${spot.distanceMile}`
-    : `${spot.distanceKm} km`;
-  const timeHtml = spot.clockTime
-    ? `<div style="font-size:var(--text-md);font-weight:600;color:#ea580c;line-height:1.4;margin:5px 0">🕐 ${spot.clockTime}</div>`
-    : '';
-  const stationsHtml = spot.nearestStations
-    .map(s => `<span style="display:inline-block;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5px;margin:2px 2px 0 0;font-size:var(--text-xs);letter-spacing:0.02em;color:#334155">${s}</span>`)
-    .join('');
-  return `<div style="font-family:system-ui,sans-serif;min-width:220px;max-width:260px;color:#0f172a">
-    <div style="font-size:var(--text-lg);font-weight:700;line-height:1.3;margin-bottom:3px">${spot.name}</div>
-    <div style="font-size:var(--text-sm);color:#64748b;letter-spacing:0.02em;margin-bottom:5px">${distLabel}</div>
-    ${timeHtml}
-    <div style="font-size:var(--text-base);color:#334155;line-height:1.5;margin-bottom:8px">${spot.description}</div>
-    <div style="font-size:var(--text-sm);color:#ea580c;font-weight:600;letter-spacing:0.02em;margin-bottom:3px">Nearest stations</div>
-    <div style="margin-bottom:8px">${stationsHtml}</div>
-    <div style="font-size:var(--text-sm);color:#64748b;letter-spacing:0.02em;border-top:1px solid #e2e8f0;padding-top:5px">${spot.crowdNotes}</div>
-  </div>`;
-}
 
 const ZOOM_THRESHOLD = 14;
+
+function buildMarkerPopupHtml(
+  marker: CourseMarker,
+  pred?: { elapsed: string; clock: string },
+): string {
+  const predHtml = pred
+    ? `<div style="margin-top:6px;padding-top:6px;border-top:1px solid #e2e8f0">
+        <div style="font-size:var(--text-xs);color:#64748b;letter-spacing:0.04em;text-transform:uppercase;font-weight:600;margin-bottom:3px">Predicted arrival</div>
+        <div style="display:flex;align-items:baseline;gap:8px">
+          <span style="font-size:var(--text-md);font-weight:700;color:#ea580c">${pred.clock}</span>
+          <span style="font-size:var(--text-xs);color:#94a3b8;font-family:monospace">${pred.elapsed}</span>
+        </div>
+      </div>`
+    : '';
+  return `<div style="font-family:system-ui,sans-serif;min-width:160px;color:#0f172a">
+    <div style="font-size:var(--text-sm);font-weight:700">${marker.title}</div>
+    ${marker.description ? `<div style="font-size:var(--text-xs);color:#64748b;margin-top:2px;letter-spacing:0.02em">${marker.description}</div>` : ''}
+    ${predHtml}
+  </div>`;
+}
 
 interface Props {
   gpxPoints: GpxPoint[];
@@ -94,9 +94,10 @@ interface Props {
   positionKm?: number | null;
   spectatorPredictions?: SpotPrediction[];
   displayUnit?: 'km' | 'mi';
+  markerPredictions?: Record<string, { elapsed: string; clock: string }>;
 }
 
-export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPredictions = [], displayUnit = 'km' }: Props) {
+export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPredictions = [], displayUnit = 'km', markerPredictions = {} }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -107,6 +108,7 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
 
   const [zoom, setZoom] = useState(13);
   const [hoveredSpotId, setHoveredSpotId] = useState<string | null>(null);
+  const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
 
   // Spots sorted by course distance — defines numbering 1–N
   const sortedSpots = [...spectatorPredictions].sort((a, b) => a.distanceKm - b.distanceKm);
@@ -151,7 +153,7 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
     containerRef.current?.classList.toggle('zoomed-out', zoom < ZOOM_THRESHOLD);
   }, [zoom]);
 
-  // Swap icons: zoomed-out → lettered (glow on hover); zoomed-in → binoculars
+  // Swap icons: zoomed-out → lettered (glow on hover/select); zoomed-in → binoculars
   useEffect(() => {
     const sorted = [...spectatorPredictions].sort((a, b) => a.distanceKm - b.distanceKm);
     if (zoom < ZOOM_THRESHOLD) {
@@ -159,15 +161,15 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
         const layer = spectatorLayersRef.current.get(spot.id);
         if (!layer) return;
         const letter = String.fromCharCode(65 + i);
-        layer.setIcon(hoveredSpotId === spot.id ? createLetterIcon(letter, true) : createLetterIcon(letter));
+        const active = hoveredSpotId === spot.id || selectedSpotId === spot.id;
+        layer.setIcon(active ? createLetterIcon(letter, true) : createLetterIcon(letter));
       });
     } else {
       for (const [, layer] of spectatorLayersRef.current) {
-        layer.closePopup();
         layer.setIcon(spectatorIcon);
       }
     }
-  }, [zoom, spectatorPredictions, hoveredSpotId]);
+  }, [zoom, spectatorPredictions, hoveredSpotId, selectedSpotId]);
 
   // Draw GPX route
   useEffect(() => {
@@ -192,7 +194,7 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
     map.fitBounds(polyline.getBounds(), { padding: [32, 32] });
   }, [gpxPoints]);
 
-  // Draw course markers
+  // Draw course markers (re-runs when predictions change to update popup content)
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -205,17 +207,19 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
     }
 
     for (const marker of markers) {
-      if (markerLayersRef.current.has(marker.id)) continue;
-      const popupHtml = `<div style="font-family:system-ui,sans-serif;min-width:140px;color:#0f172a">
-        <div style="font-size:var(--text-sm);font-weight:700">${marker.title}</div>
-        ${marker.description ? `<div style="font-size:var(--text-xs);color:#64748b;margin-top:2px">${marker.description}</div>` : ''}
-      </div>`;
-      const layer = L.marker([marker.lat, marker.lng], { icon: createOfficialIcon(marker.title) })
-        .bindPopup(popupHtml, { maxWidth: 260 })
-        .addTo(map);
-      markerLayersRef.current.set(marker.id, layer);
+      const pred = markerPredictions[marker.id];
+      const popupHtml = buildMarkerPopupHtml(marker, pred);
+      const existing = markerLayersRef.current.get(marker.id);
+      if (existing) {
+        existing.setPopupContent(popupHtml);
+      } else {
+        const layer = L.marker([marker.lat, marker.lng], { icon: createOfficialIcon(marker.title) })
+          .bindPopup(popupHtml, { maxWidth: 280 })
+          .addTo(map);
+        markerLayersRef.current.set(marker.id, layer);
+      }
     }
-  }, [markers]);
+  }, [markers, markerPredictions]);
 
   // Draw runner position
   useEffect(() => {
@@ -247,6 +251,13 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
       .addTo(map);
   }, [positionKm, gpxPoints]);
 
+  // Scroll selected tile into view when selected via map click
+  useEffect(() => {
+    if (!selectedSpotId) return;
+    const el = document.querySelector(`[data-spot-id="${selectedSpotId}"]`);
+    el?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  }, [selectedSpotId]);
+
   // Draw spectator viewing spots
   useEffect(() => {
     const map = mapRef.current;
@@ -271,14 +282,13 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
       const existing = spectatorLayersRef.current.get(spot.id);
 
       if (existing) {
-        existing.setPopupContent(fullPopup(spot, displayUnit));
         existing.setTooltipContent(`${letter} · ${spot.name} · ${displayUnit === 'mi' ? `Mile ${spot.distanceMile}` : `${spot.distanceKm} km`}`);
       } else {
         const distLabel = displayUnit === 'mi' ? `Mile ${spot.distanceMile}` : `${spot.distanceKm} km`;
         const layer = L.marker([spot.lat, spot.lng], { icon: spectatorIcon })
-          .bindPopup(fullPopup(spot, displayUnit), { maxWidth: 260 })
           .bindTooltip(`${letter} · ${spot.name} · ${distLabel}`, { permanent: true, direction: 'right', className: 'spectator-label', offset: [8, 0] })
           .addTo(map);
+        layer.on('click', () => setSelectedSpotId(prev => prev === spot.id ? null : spot.id));
         spectatorLayersRef.current.set(spot.id, layer);
       }
     }
@@ -305,61 +315,126 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
           scrollbarWidth: 'none',
           paddingBottom: 2,
         }}>
-          {sortedSpots.map((spot, i) => (
-            <div
-              key={spot.id}
-              onMouseEnter={() => setHoveredSpotId(spot.id)}
-              onMouseLeave={() => setHoveredSpotId(null)}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 3,
-                background: hoveredSpotId === spot.id ? 'rgba(245,240,255,0.97)' : 'rgba(255,255,255,0.93)',
-                border: hoveredSpotId === spot.id ? '1px solid #a855f7' : '1px solid #e2e8f0',
-                borderRadius: 7,
-                padding: '5px 10px 5px 6px',
-                boxShadow: hoveredSpotId === spot.id ? '0 2px 8px rgba(168,85,247,0.25)' : '0 1px 3px rgba(0,0,0,0.1)',
-                width: 190,
-                height: 160,
-                flexShrink: 0,
-                overflowY: 'auto',
-                scrollbarWidth: 'none',
-                pointerEvents: 'auto',
-                cursor: 'default',
-                transition: 'border-color 0.15s, box-shadow 0.15s, background 0.15s',
-              }}>
-              {/* Top row */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7, flexWrap: 'wrap' }}>
-                {/* Letter badge */}
-                <span style={{
-                  width: 19, height: 19, borderRadius: '50%',
-                  background: '#a855f7', color: 'white',
-                  fontSize: 'var(--text-xs)', fontWeight: 700,
-                  fontFamily: 'system-ui,sans-serif',
-                  textAlign: 'center', lineHeight: '19px',
+          {sortedSpots.map((spot, i) => {
+            const isSelected = selectedSpotId === spot.id;
+            const isHovered = hoveredSpotId === spot.id;
+            const letter = String.fromCharCode(65 + i);
+            const distLabel = displayUnit === 'mi' ? `Mi ${spot.distanceMile}` : `${spot.distanceKm} km`;
+            return (
+              <div
+                key={spot.id}
+                data-spot-id={spot.id}
+                onMouseEnter={() => setHoveredSpotId(spot.id)}
+                onMouseLeave={() => setHoveredSpotId(null)}
+                onClick={() => setSelectedSpotId(prev => prev === spot.id ? null : spot.id)}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 4,
+                  background: isSelected
+                    ? 'rgba(245,240,255,0.98)'
+                    : isHovered
+                      ? 'rgba(250,247,255,0.97)'
+                      : 'rgba(255,255,255,0.93)',
+                  border: isSelected
+                    ? '1.5px solid #a855f7'
+                    : isHovered
+                      ? '1px solid #c084fc'
+                      : '1px solid #e2e8f0',
+                  borderRadius: 10,
+                  padding: isSelected ? '8px 12px 10px 8px' : '5px 10px 5px 6px',
+                  boxShadow: isSelected
+                    ? '0 4px 16px rgba(168,85,247,0.3)'
+                    : isHovered
+                      ? '0 2px 8px rgba(168,85,247,0.18)'
+                      : '0 1px 3px rgba(0,0,0,0.1)',
+                  width: isSelected ? 290 : 190,
+                  height: isSelected ? 'auto' : 160,
+                  maxHeight: isSelected ? 320 : 160,
                   flexShrink: 0,
-                }}>{String.fromCharCode(65 + i)}</span>
-                {/* Name */}
-                <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: '#1e293b', letterSpacing: '0.02em', flex: 1, minWidth: 0 }}>
-                  {spot.name}
-                </span>
-                {/* Distance marker */}
-                <span style={{ fontSize: 'var(--text-xs)', color: '#94a3b8', flexShrink: 0, letterSpacing: '0.02em' }}>
-                  {displayUnit === 'mi' ? `Mi ${spot.distanceMile}` : `${spot.distanceKm} km`}
-                </span>
-                {/* Predicted time */}
-                {spot.clockTime && (
-                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#ea580c', flexShrink: 0 }}>{spot.clockTime}</span>
+                  overflowY: isSelected ? 'visible' : 'auto',
+                  scrollbarWidth: 'none',
+                  pointerEvents: 'auto',
+                  cursor: 'pointer',
+                  transition: 'border-color 0.2s, box-shadow 0.2s, background 0.2s, width 0.2s, max-height 0.2s, padding 0.2s',
+                }}>
+
+                {/* Top row: badge + name + distance + time */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7, flexWrap: 'wrap' }}>
+                  <span style={{
+                    width: isSelected ? 22 : 19,
+                    height: isSelected ? 22 : 19,
+                    borderRadius: '50%',
+                    background: '#a855f7', color: 'white',
+                    fontSize: isSelected ? 'var(--text-sm)' : 'var(--text-xs)', fontWeight: 700,
+                    fontFamily: 'system-ui,sans-serif',
+                    textAlign: 'center', lineHeight: isSelected ? '22px' : '19px',
+                    flexShrink: 0,
+                    transition: 'width 0.2s, height 0.2s',
+                  }}>{letter}</span>
+                  <span style={{ fontSize: isSelected ? 'var(--text-base)' : 'var(--text-sm)', fontWeight: 700, color: '#1e293b', letterSpacing: '0.02em', flex: 1, minWidth: 0 }}>
+                    {spot.name}
+                  </span>
+                  <span style={{ fontSize: 'var(--text-xs)', color: '#94a3b8', flexShrink: 0, letterSpacing: '0.02em' }}>
+                    {distLabel}
+                  </span>
+                  {spot.clockTime && (
+                    <span style={{ fontSize: isSelected ? 'var(--text-md)' : 'var(--text-sm)', fontWeight: 700, color: '#ea580c', flexShrink: 0 }}>
+                      {spot.clockTime}
+                    </span>
+                  )}
+                </div>
+
+                {/* Description — always visible */}
+                {spot.description && (
+                  <div style={{ fontSize: 'var(--text-xs)', color: '#64748b', lineHeight: 1.45, letterSpacing: '0.02em', paddingLeft: isSelected ? 29 : 26 }}>
+                    {spot.description}
+                  </div>
+                )}
+
+                {/* Expanded content — only when selected */}
+                {isSelected && (
+                  <>
+                    {/* Nearest stations */}
+                    {spot.nearestStations.length > 0 && (
+                      <div style={{ paddingLeft: 29, marginTop: 4 }}>
+                        <div style={{ fontSize: 'var(--text-xs)', color: '#ea580c', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 4 }}>
+                          Nearest stations
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                          {spot.nearestStations.map(s => (
+                            <span key={s} style={{
+                              display: 'inline-block',
+                              background: '#f1f5f9', border: '1px solid #e2e8f0',
+                              borderRadius: 5, padding: '2px 7px',
+                              fontSize: 'var(--text-xs)', color: '#334155', letterSpacing: '0.02em',
+                            }}>{s}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Crowd notes */}
+                    {spot.crowdNotes && (
+                      <div style={{
+                        paddingLeft: 29, marginTop: 4,
+                        borderTop: '1px solid #e2e8f0', paddingTop: 7,
+                        fontSize: 'var(--text-xs)', color: '#64748b',
+                        lineHeight: 1.45, letterSpacing: '0.02em',
+                      }}>
+                        {spot.crowdNotes}
+                      </div>
+                    )}
+
+                    {/* Dismiss hint */}
+                    <div style={{ paddingLeft: 29, marginTop: 6, fontSize: 'var(--text-xs)', color: '#c4b5fd' }}>
+                      Click to close
+                    </div>
+                  </>
                 )}
               </div>
-              {/* Description */}
-              {spot.description && (
-                <div style={{ fontSize: 'var(--text-xs)', color: '#64748b', lineHeight: 1.4, letterSpacing: '0.02em', paddingLeft: 26 }}>
-                  {spot.description}
-                </div>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
