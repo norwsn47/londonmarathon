@@ -33,19 +33,29 @@ const userIcon = L.divIcon({
 const spectatorIcon = L.divIcon({
   className: '',
   html: `<div style="filter:drop-shadow(0 1px 4px rgba(0,0,0,0.4))">
-    <svg width="22" height="16" viewBox="0 0 22 16" xmlns="http://www.w3.org/2000/svg">
-      <rect x="2.5" y="1" width="5" height="6" rx="1.5" fill="#a855f7" stroke="white" stroke-width="1.2"/>
-      <rect x="14.5" y="1" width="5" height="6" rx="1.5" fill="#a855f7" stroke="white" stroke-width="1.2"/>
-      <rect x="8" y="3.5" width="6" height="3" fill="#a855f7"/>
-      <circle cx="5" cy="11" r="4.2" fill="#a855f7" stroke="white" stroke-width="1.5"/>
-      <circle cx="17" cy="11" r="4.2" fill="#a855f7" stroke="white" stroke-width="1.5"/>
-      <circle cx="5" cy="11" r="2.2" fill="white" opacity="0.2"/>
-      <circle cx="17" cy="11" r="2.2" fill="white" opacity="0.2"/>
+    <svg width="26" height="18" viewBox="0 0 26 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- Left barrel -->
+      <rect x="1" y="1" width="8" height="8" rx="2" fill="#a855f7" stroke="white" stroke-width="1.3"/>
+      <!-- Right barrel -->
+      <rect x="17" y="1" width="8" height="8" rx="2" fill="#a855f7" stroke="white" stroke-width="1.3"/>
+      <!-- Bridge fills gap -->
+      <rect x="8.6" y="3" width="8.8" height="4.5" fill="#a855f7"/>
+      <!-- Bridge top/bottom lines -->
+      <line x1="9" y1="3" x2="17" y2="3" stroke="white" stroke-width="1.3"/>
+      <line x1="9" y1="7.5" x2="17" y2="7.5" stroke="white" stroke-width="1.3"/>
+      <!-- Left objective lens -->
+      <circle cx="5" cy="13.5" r="4" fill="#a855f7" stroke="white" stroke-width="1.5"/>
+      <!-- Right objective lens -->
+      <circle cx="21" cy="13.5" r="4" fill="#a855f7" stroke="white" stroke-width="1.5"/>
+      <!-- Lens glare left -->
+      <circle cx="3.8" cy="12.3" r="1.4" fill="white" opacity="0.3"/>
+      <!-- Lens glare right -->
+      <circle cx="19.8" cy="12.3" r="1.4" fill="white" opacity="0.3"/>
     </svg>
   </div>`,
-  iconSize: [22, 16],
-  iconAnchor: [11, 11],
-  popupAnchor: [0, -14],
+  iconSize: [26, 18],
+  iconAnchor: [13, 18],
+  popupAnchor: [0, -20],
 });
 
 interface Props {

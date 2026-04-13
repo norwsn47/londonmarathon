@@ -18,13 +18,13 @@ import AddMarkerModal from './components/AddMarkerModal';
 
 // Pre-populated official course markers
 const OFFICIAL_MARKERS: CourseMarker[] = [
-  { id: 'start',        lat: 51.4878,  lng:  0.0063,  title: 'Start Line',     description: 'Blackheath — Championship & Mass start', type: 'official' },
-  { id: 'km10',         lat: 51.4938,  lng: -0.0518,  title: '10 km',          description: 'Charlton Way / Woolwich Road',            type: 'official' },
-  { id: 'tower-bridge', lat: 51.5055,  lng: -0.0754,  title: 'Tower Bridge',   description: '~12.5 km — iconic crossing',              type: 'official' },
-  { id: 'half',         lat: 51.5074,  lng: -0.0834,  title: 'Half Marathon',  description: '21.1 km',                                 type: 'official' },
-  { id: 'km30',         lat: 51.4855,  lng: -0.0541,  title: '30 km',          description: 'Isle of Dogs turnaround',                 type: 'official' },
-  { id: 'km40',         lat: 51.5007,  lng: -0.1196,  title: '40 km',          description: 'Embankment — nearly there!',              type: 'official' },
-  { id: 'finish',       lat: 51.5015,  lng: -0.1247,  title: 'Finish Line',    description: 'The Mall — Buckingham Palace',            type: 'official' },
+  { id: 'start',        lat: 51.4730,  lng:  0.0034,  title: 'Start Line',     description: 'Blackheath — Championship & Mass start', type: 'official' },
+  { id: 'km10',         lat: 51.4830,  lng: -0.0028,  title: '10 km',          description: 'Deptford / New Cross area',               type: 'official' },
+  { id: 'tower-bridge', lat: 51.5056,  lng: -0.0754,  title: 'Tower Bridge',   description: '~20 km — iconic crossing',                type: 'official' },
+  { id: 'half',         lat: 51.5094,  lng: -0.0610,  title: 'Half Marathon',  description: '21.1 km',                                 type: 'official' },
+  { id: 'km30',         lat: 51.5050,  lng: -0.0224,  title: '30 km',          description: 'Isle of Dogs / Docklands',                type: 'official' },
+  { id: 'km40',         lat: 51.5057,  lng: -0.1228,  title: '40 km',          description: 'Embankment — nearly there!',              type: 'official' },
+  { id: 'finish',       lat: 51.5032,  lng: -0.1374,  title: 'Finish Line',    description: 'The Mall',                               type: 'official' },
 ];
 
 const DEFAULT_TARGET = 4 * 3600;
