@@ -57,7 +57,6 @@ interface OverlayItem {
 
 interface OverlayData {
   items: OverlayItem[];
-  panelLineX: number; // right edge of the left-side panel, where lines connect
 }
 
 interface Props {
@@ -128,7 +127,6 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
     }
 
     const containerH = wrapper.offsetHeight;
-    const panelLineX = PANEL_RIGHT + PANEL_W; // right edge of left-side panel
 
     // Sort by race distance ascending (earliest point at top)
     const sorted = [...spectatorPredictions]
@@ -146,7 +144,7 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
       labelY: panelTop + i * (LABEL_H + LABEL_GAP),
     }));
 
-    setOverlayData({ items, panelLineX });
+    setOverlayData({ items });
   }, [zoom, spectatorPredictions]);
 
   // Draw GPX route
@@ -293,19 +291,6 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
       {/* Zoomed-out: stacked side panel with leader lines */}
       {overlayData && (
         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 900, overflow: 'hidden' }}>
-          <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
-            {overlayData.items.map(item => (
-              <g key={item.spot.id}>
-                <circle cx={item.px} cy={item.py} r="3.5" fill="#a855f7" opacity="0.85" />
-                <line
-                  x1={overlayData.panelLineX} y1={item.labelY + LABEL_H / 2}
-                  x2={item.px} y2={item.py}
-                  stroke="#a855f7" strokeWidth="1" strokeOpacity="0.4" strokeDasharray="3 2"
-                />
-              </g>
-            ))}
-          </svg>
-
           <div style={{
             position: 'absolute',
             left: PANEL_RIGHT,
