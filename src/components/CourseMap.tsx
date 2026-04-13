@@ -119,6 +119,9 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
       center: [51.5, -0.08],
       zoom: 13,
       zoomControl: false,
+      zoomSnap: 0.25,
+      zoomDelta: 0.5,
+      wheelPxPerZoomLevel: 80,
     });
 
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
@@ -127,7 +130,7 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
       maxZoom: 19,
     }).addTo(map);
 
-    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    L.control.zoom({ position: 'topright' }).addTo(map);
 
     mapRef.current = map;
 
