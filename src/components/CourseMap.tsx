@@ -114,7 +114,7 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
     containerRef.current?.classList.toggle('zoomed-out', zoom < ZOOM_THRESHOLD);
   }, [zoom]);
 
-  // Compute side-panel overlay after DOM is stable (useEffect, not inline render)
+  // Compute side-panel overlay after DOM is stable
   useEffect(() => {
     const map = mapRef.current;
     const wrapper = wrapperRef.current;
@@ -270,72 +270,74 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
   }, [spectatorPredictions]);
 
   return (
-    <div className="bg-surface rounded-2xl border border-border overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-        <div className="flex items-center gap-3">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Course Map</p>
-          <span className="flex items-center gap-1 text-[10px] text-purple-400 font-medium">
-            <span className="inline-block w-2.5 h-2.5 rounded-full bg-purple-500 border border-white/30" />
-            Viewing spots
-          </span>
-        </div>
+    <div ref={wrapperRef} className="relative w-full h-full">
+      <div ref={containerRef} style={{ height: '100%' }} />
+
+      {/* Small legend pill — bottom-left of map */}
+      <div style={{ position: 'absolute', bottom: 28, left: 8, zIndex: 900, pointerEvents: 'none' }}>
+        <span style={{
+          display: 'inline-flex', alignItems: 'center', gap: 5,
+          background: 'rgba(255,255,255,0.92)', border: '1px solid #e2e8f0',
+          borderRadius: 6, padding: '3px 8px',
+          fontSize: 10, fontWeight: 600, color: '#7c3aed',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+        }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#a855f7', flexShrink: 0 }} />
+          Viewing spots
+        </span>
       </div>
 
-      <div ref={wrapperRef} className="relative" style={{ height: '80vh' }}>
-        <div ref={containerRef} style={{ height: '100%' }} />
+      {/* Zoomed-out: stacked side panel with leader lines */}
+      {overlayData && (
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 900, overflow: 'hidden' }}>
+          <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
+            {overlayData.items.map(item => (
+              <g key={item.spot.id}>
+                <circle cx={item.px} cy={item.py} r="3.5" fill="#a855f7" opacity="0.85" />
+                <line
+                  x1={item.px} y1={item.py}
+                  x2={overlayData.panelLeft} y2={item.labelY + LABEL_H / 2}
+                  stroke="#a855f7" strokeWidth="1" strokeOpacity="0.4" strokeDasharray="3 2"
+                />
+              </g>
+            ))}
+          </svg>
 
-        {/* Zoomed-out: stacked side panel with leader lines */}
-        {overlayData && (
-          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 900, overflow: 'hidden' }}>
-            <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
-              {overlayData.items.map(item => (
-                <g key={item.spot.id}>
-                  <circle cx={item.px} cy={item.py} r="3.5" fill="#a855f7" opacity="0.85" />
-                  <line
-                    x1={item.px} y1={item.py}
-                    x2={overlayData.panelLeft} y2={item.labelY + LABEL_H / 2}
-                    stroke="#a855f7" strokeWidth="1" strokeOpacity="0.4" strokeDasharray="3 2"
-                  />
-                </g>
-              ))}
-            </svg>
-
-            <div style={{
-              position: 'absolute',
-              right: PANEL_RIGHT,
-              top: overlayData.items[0]?.labelY ?? 8,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: LABEL_GAP,
-            }}>
-              {overlayData.items.map(item => (
-                <div key={item.spot.id} style={{
-                  height: LABEL_H,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  background: 'rgba(255,255,255,0.93)',
-                  border: '1px solid #e2e8f0',
-                  borderRadius: 5,
-                  padding: '0 6px',
-                  fontSize: 10,
-                  fontWeight: 600,
-                  color: '#334155',
-                  whiteSpace: 'nowrap',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                  width: PANEL_W - 2,
-                }}>
-                  <span style={{ color: '#9333ea', fontWeight: 700, flexShrink: 0 }}>M{item.spot.distanceMile}</span>
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, minWidth: 0 }}>{item.spot.name}</span>
-                  {item.spot.clockTime && (
-                    <span style={{ color: '#ea580c', flexShrink: 0 }}>{item.spot.clockTime}</span>
-                  )}
-                </div>
-              ))}
-            </div>
+          <div style={{
+            position: 'absolute',
+            right: PANEL_RIGHT,
+            top: overlayData.items[0]?.labelY ?? 8,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: LABEL_GAP,
+          }}>
+            {overlayData.items.map(item => (
+              <div key={item.spot.id} style={{
+                height: LABEL_H,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                background: 'rgba(255,255,255,0.93)',
+                border: '1px solid #e2e8f0',
+                borderRadius: 5,
+                padding: '0 6px',
+                fontSize: 10,
+                fontWeight: 600,
+                color: '#334155',
+                whiteSpace: 'nowrap',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                width: PANEL_W - 2,
+              }}>
+                <span style={{ color: '#9333ea', fontWeight: 700, flexShrink: 0 }}>M{item.spot.distanceMile}</span>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, minWidth: 0 }}>{item.spot.name}</span>
+                {item.spot.clockTime && (
+                  <span style={{ color: '#ea580c', flexShrink: 0 }}>{item.spot.clockTime}</span>
+                )}
+              </div>
+            ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

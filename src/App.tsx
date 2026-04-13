@@ -14,7 +14,6 @@ import { predictSpotTimes, type SpotPrediction } from './lib/spectatorSpots';
 import Header from './components/Header';
 import CourseMap from './components/CourseMap';
 import PositionSlider from './components/PositionSlider';
-import AddMarkerModal from './components/AddMarkerModal';
 
 // Pre-populated official course markers
 const OFFICIAL_MARKERS: CourseMarker[] = [
@@ -42,9 +41,6 @@ export default function App() {
 
   // Map / GPX state
   const [gpxPoints, setGpxPoints] = useState<GpxPoint[]>([]);
-  const [userMarkers, setUserMarkers] = useState<CourseMarker[]>([]);
-  const [pendingLatLng, setPendingLatLng] = useState<{ lat: number; lng: number } | null>(null);
-  const [addingMarker, setAddingMarker] = useState(false);
   const [elapsedSec, setElapsedSec] = useState(0);
 
   const autoBalanceIdxs = useMemo(() => getAutoBalanceIdxs(segments), [segments]);
@@ -60,8 +56,6 @@ export default function App() {
 
   const projectedSec = totalTimeSeconds(displaySegments);
   const positionKm = getPositionAtTime(displaySegments, elapsedSec);
-
-  const allMarkers = useMemo(() => [...OFFICIAL_MARKERS, ...userMarkers], [userMarkers]);
 
   // Gun start time — user-configurable, default 10:00
   const [startTimeStr, setStartTimeStr] = useState('10:00');
@@ -88,41 +82,6 @@ export default function App() {
       .catch(() => { /* GPX not yet uploaded to /public */ });
   }, []);
 
-  // Load user markers from API
-  useEffect(() => {
-    fetch('/api/markers')
-      .then(r => r.json() as Promise<CourseMarker[]>)
-      .then(data => { if (Array.isArray(data)) setUserMarkers(data); })
-      .catch(() => { /* API not available in dev without wrangler */ });
-  }, []);
-
-  const handleMapClick = useCallback((lat: number, lng: number) => {
-    if (!addingMarker) return;
-    setPendingLatLng({ lat, lng });
-  }, [addingMarker]);
-
-  async function saveMarker(title: string, description: string) {
-    if (!pendingLatLng) return;
-    try {
-      const res = await fetch('/api/markers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          lat: pendingLatLng.lat,
-          lng: pendingLatLng.lng,
-          title,
-          description,
-        }),
-      });
-      if (res.ok) {
-        const saved = await res.json() as CourseMarker;
-        setUserMarkers(prev => [...prev, saved]);
-      }
-    } catch { /* ignore */ }
-    setPendingLatLng(null);
-    setAddingMarker(false);
-  }
-
   const handleTargetChange = useCallback((newTarget: number) => {
     setTargetSec(newTarget);
     if (strategy !== 'custom') {
@@ -139,133 +98,112 @@ export default function App() {
   }, [targetSec, unit, negativePct]);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
-      <div className="max-w-2xl mx-auto px-4 pb-20">
-        <Header />
+    <div className="w-screen h-screen overflow-hidden relative font-sans">
+      {/* Full-screen map */}
+      <div className="absolute inset-0">
+        <CourseMap
+          gpxPoints={gpxPoints}
+          markers={OFFICIAL_MARKERS}
+          positionKm={positionKm}
+          spectatorPredictions={spectatorPredictions}
+        />
+      </div>
 
-        <div className="space-y-4">
-          {/* Course map */}
-          <CourseMap
-            gpxPoints={gpxPoints}
-            markers={allMarkers}
-            positionKm={positionKm}
-            onMapClick={handleMapClick}
-            canAddMarkers={addingMarker}
-            spectatorPredictions={spectatorPredictions}
-          />
+      {/* Floating right panel */}
+      <div className="absolute right-4 top-4 bottom-4 w-80 z-[1000] flex flex-col gap-3 overflow-y-auto">
+        {/* Header card */}
+        <div className="bg-white/95 backdrop-blur-sm rounded-2xl border border-border shadow-xl px-4 pt-2 pb-3">
+          <Header />
+        </div>
 
-          {/* Add marker button */}
-          <div className="flex items-center justify-end">
-            <button
-              onClick={() => setAddingMarker(v => !v)}
-              className={`text-xs font-semibold px-3 py-1.5 rounded-xl border transition-all ${
-                addingMarker
-                  ? 'bg-orange-500/10 border-orange-500/50 text-orange-600'
-                  : 'bg-surface border-border text-slate-500 hover:border-slate-400 hover:text-slate-900'
-              }`}
-            >
-              {addingMarker ? '✕ Cancel' : '+ Add marker'}
-            </button>
-          </div>
-
-          {/* Target time + gun start */}
-          <div className="bg-surface rounded-2xl p-4 border border-border">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">
-              Target Finish Time
-            </p>
-            <div className="flex items-center gap-2 flex-wrap">
-              {[
-                { label: '3:30', sec: 3 * 3600 + 30 * 60 },
-                { label: '4:00', sec: 4 * 3600 },
-                { label: '4:30', sec: 4 * 3600 + 30 * 60 },
-                { label: '5:00', sec: 5 * 3600 },
-              ].map(({ label, sec }) => (
+        {/* Target time + gun start */}
+        <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-4 border border-border shadow-xl">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">
+            Target Finish Time
+          </p>
+          <div className="flex items-center gap-2 flex-wrap">
+            {[
+              { label: '3:30', sec: 3 * 3600 + 30 * 60 },
+              { label: '4:00', sec: 4 * 3600 },
+              { label: '4:30', sec: 4 * 3600 + 30 * 60 },
+              { label: '5:00', sec: 5 * 3600 },
+            ].map(({ label, sec }) => (
+              <button
+                key={label}
+                onClick={() => handleTargetChange(sec)}
+                className={`text-sm font-bold px-3 py-1.5 rounded-xl border transition-all ${
+                  targetSec === sec
+                    ? 'bg-orange-500/10 border-orange-500/50 text-orange-600'
+                    : 'bg-surface-2 border-border text-slate-500 hover:border-slate-400 hover:text-slate-900'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+            <div className="flex items-center gap-2 mt-2 w-full">
+              <span className="text-xs text-slate-500">Strategy:</span>
+              {(['even', 'negative'] as Strategy[]).map(s => (
                 <button
-                  key={label}
-                  onClick={() => handleTargetChange(sec)}
-                  className={`text-sm font-bold px-3 py-1.5 rounded-xl border transition-all ${
-                    targetSec === sec
+                  key={s}
+                  onClick={() => handleStrategySelect(s)}
+                  className={`text-xs font-semibold px-2.5 py-1 rounded-lg border transition-all ${
+                    strategy === s
                       ? 'bg-orange-500/10 border-orange-500/50 text-orange-600'
-                      : 'bg-surface-2 border-border text-slate-500 hover:border-slate-400 hover:text-slate-900'
+                      : 'border-border text-slate-500 hover:text-slate-900'
                   }`}
                 >
-                  {label}
+                  {s === 'even' ? 'Even' : 'Negative'}
                 </button>
               ))}
-              <div className="flex items-center gap-2 ml-auto">
-                <span className="text-xs text-slate-500">Strategy:</span>
-                {(['even', 'negative'] as Strategy[]).map(s => (
-                  <button
-                    key={s}
-                    onClick={() => handleStrategySelect(s)}
-                    className={`text-xs font-semibold px-2.5 py-1 rounded-lg border transition-all ${
-                      strategy === s
-                        ? 'bg-orange-500/10 border-orange-500/50 text-orange-600'
-                        : 'border-border text-slate-500 hover:text-slate-900'
-                    }`}
-                  >
-                    {s === 'even' ? 'Even' : 'Negative'}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Gun start time */}
-            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border">
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest whitespace-nowrap">
-                Gun start
-              </label>
-              <input
-                type="time"
-                value={startTimeStr}
-                onChange={e => setStartTimeStr(e.target.value)}
-                className="ml-auto text-sm font-mono font-semibold text-slate-900 bg-surface-2 border border-border rounded-lg px-2 py-1 outline-none focus:border-orange-500/60 transition-colors"
-              />
-              <span className="text-xs text-slate-400">affects viewing-spot times</span>
             </div>
           </div>
 
-          {/* Position slider */}
+          {/* Gun start time */}
+          <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest whitespace-nowrap">
+              Gun start
+            </label>
+            <input
+              type="time"
+              value={startTimeStr}
+              onChange={e => setStartTimeStr(e.target.value)}
+              className="ml-auto text-sm font-mono font-semibold text-slate-900 bg-surface-2 border border-border rounded-lg px-2 py-1 outline-none focus:border-orange-500/60 transition-colors"
+            />
+          </div>
+        </div>
+
+        {/* Position slider */}
+        <div className="bg-white/95 backdrop-blur-sm rounded-2xl border border-border shadow-xl">
           <PositionSlider
             segments={displaySegments}
             elapsedSec={elapsedSec}
             onChange={setElapsedSec}
           />
+        </div>
 
-          {/* Pace summary */}
-          <div className="bg-surface rounded-2xl p-4 border border-border">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">
-              Pace Summary
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-surface-2 rounded-xl p-3 border border-border">
-                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Target</p>
-                <p className="text-sm font-bold font-mono text-slate-900">{formatDuration(targetSec)}</p>
-              </div>
-              <div className="bg-surface-2 rounded-xl p-3 border border-border">
-                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Projected</p>
-                <p className={`text-sm font-bold font-mono ${
-                  Math.abs(projectedSec - targetSec) < 15 ? 'text-slate-900'
-                  : projectedSec < targetSec ? 'text-green-600'
-                  : 'text-red-500'
-                }`}>
-                  {formatDuration(projectedSec)}
-                </p>
-              </div>
+        {/* Pace summary */}
+        <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-4 border border-border shadow-xl">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">
+            Pace Summary
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-surface-2 rounded-xl p-3 border border-border">
+              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Target</p>
+              <p className="text-sm font-bold font-mono text-slate-900">{formatDuration(targetSec)}</p>
+            </div>
+            <div className="bg-surface-2 rounded-xl p-3 border border-border">
+              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Projected</p>
+              <p className={`text-sm font-bold font-mono ${
+                Math.abs(projectedSec - targetSec) < 15 ? 'text-slate-900'
+                : projectedSec < targetSec ? 'text-green-600'
+                : 'text-red-500'
+              }`}>
+                {formatDuration(projectedSec)}
+              </p>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Add marker modal */}
-      {pendingLatLng && (
-        <AddMarkerModal
-          lat={pendingLatLng.lat}
-          lng={pendingLatLng.lng}
-          onSave={saveMarker}
-          onCancel={() => { setPendingLatLng(null); setAddingMarker(false); }}
-        />
-      )}
     </div>
   );
 }
