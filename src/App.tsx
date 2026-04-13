@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import type { Segment, CourseMarker } from './lib/types';
 import { generateSegments, MARATHON_KM, KM_PER_MILE } from './lib/paceUtils';
 import { parseGpx, type GpxPoint } from './lib/gpxParser';
-import { predictSpotTimes, type SpotPrediction } from './lib/spectatorSpots';
+import { predictSpotTimes, type SpotPrediction, type SpectatorSpot, SPECTATOR_SPOTS } from './lib/spectatorSpots';
 import CourseMap from './components/CourseMap';
 
 // Pre-populated official course markers
@@ -63,6 +63,8 @@ export default function App() {
     generateSegments(DEFAULT_TARGET, 'even', UNIT),
   );
   const [gpxPoints, setGpxPoints] = useState<GpxPoint[]>([]);
+  const [officialMarkers, setOfficialMarkers] = useState<CourseMarker[]>(OFFICIAL_MARKERS);
+  const [spectatorSpots, setSpectatorSpots] = useState<SpectatorSpot[]>(SPECTATOR_SPOTS);
   const [displayUnit, setDisplayUnit] = useState<'km' | 'mi'>('km');
   const [startTimeStr, setStartTimeStr] = useState('10:00');
 
@@ -80,14 +82,14 @@ export default function App() {
   }, [startTimeStr]);
 
   const spectatorPredictions = useMemo<SpotPrediction[]>(
-    () => predictSpotTimes(runnerStartTime, segments),
-    [runnerStartTime, segments],
+    () => predictSpotTimes(runnerStartTime, segments, spectatorSpots),
+    [runnerStartTime, segments, spectatorSpots],
   );
 
   // Predicted pass-through times for official course markers
   const markerPredictions = useMemo(() => {
     const result: Record<string, { elapsed: string; clock: string }> = {};
-    for (const m of OFFICIAL_MARKERS) {
+    for (const m of officialMarkers) {
       if (m.distanceKm == null) continue;
       const elapsedSec = targetSec * (m.distanceKm / MARATHON_KM);
       const clock = new Date(runnerStartTime.getTime() + elapsedSec * 1000)
@@ -95,7 +97,7 @@ export default function App() {
       result[m.id] = { elapsed: secToHMS(elapsedSec), clock };
     }
     return result;
-  }, [targetSec, runnerStartTime]);
+  }, [targetSec, runnerStartTime, officialMarkers]);
 
   // Splits table data
   const splits = useMemo(() => {
@@ -116,10 +118,21 @@ export default function App() {
   useEffect(() => {
     fetch('/london-marathon.gpx')
       .then(r => r.text())
-      .then(text => {
-        const pts = parseGpx(text);
-        if (pts.length) setGpxPoints(pts);
-      })
+      .then(text => { const pts = parseGpx(text); if (pts.length) setGpxPoints(pts); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/official-markers')
+      .then(r => r.json())
+      .then((data: CourseMarker[]) => { if (Array.isArray(data) && data.length) setOfficialMarkers(data); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/spectator-spots')
+      .then(r => r.json())
+      .then((data: SpectatorSpot[]) => { if (Array.isArray(data) && data.length) setSpectatorSpots(data); })
       .catch(() => {});
   }, []);
 
@@ -145,7 +158,7 @@ export default function App() {
       <div className="absolute inset-0">
         <CourseMap
           gpxPoints={gpxPoints}
-          markers={OFFICIAL_MARKERS}
+          markers={officialMarkers}
           positionKm={null}
           spectatorPredictions={spectatorPredictions}
           displayUnit={displayUnit}

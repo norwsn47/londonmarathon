@@ -1,14 +1,3 @@
--- Existing user-placed markers (keep as-is)
-CREATE TABLE IF NOT EXISTS markers (
-  id          TEXT PRIMARY KEY,
-  lat         REAL NOT NULL,
-  lng         REAL NOT NULL,
-  title       TEXT NOT NULL,
-  description TEXT NOT NULL DEFAULT '',
-  type        TEXT NOT NULL DEFAULT 'user'
-);
-
--- Official course markers (start, km10, tower bridge, HM, etc.)
 CREATE TABLE IF NOT EXISTS official_markers (
   id          TEXT PRIMARY KEY,
   title       TEXT NOT NULL,
@@ -22,7 +11,6 @@ CREATE TABLE IF NOT EXISTS official_markers (
 
 CREATE INDEX IF NOT EXISTS idx_official_markers_sort ON official_markers(sort_order);
 
--- Spectator viewing spots
 CREATE TABLE IF NOT EXISTS spectator_spots (
   id                TEXT PRIMARY KEY,
   name              TEXT NOT NULL,
@@ -37,5 +25,5 @@ CREATE TABLE IF NOT EXISTS spectator_spots (
   updated_at        TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX IF NOT EXISTS idx_spectator_spots_sort  ON spectator_spots(sort_order);
-CREATE INDEX IF NOT EXISTS idx_spectator_spots_dist  ON spectator_spots(distance_km);
+CREATE INDEX IF NOT EXISTS idx_spectator_spots_sort ON spectator_spots(sort_order);
+CREATE INDEX IF NOT EXISTS idx_spectator_spots_dist ON spectator_spots(distance_km);

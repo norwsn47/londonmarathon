@@ -169,8 +169,9 @@ function getElapsedAtKm(segments: Segment[], targetKm: number): number {
 export function predictSpotTimes(
   startTime: Date | null,
   segments: Segment[],
+  spots: SpectatorSpot[] = SPECTATOR_SPOTS,
 ): SpotPrediction[] {
-  return SPECTATOR_SPOTS.map(spot => {
+  return spots.map(spot => {
     const elapsedSec = getElapsedAtKm(segments, spot.distanceKm);
     let clockTime: string | null = null;
     if (startTime) {

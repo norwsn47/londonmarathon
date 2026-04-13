@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>London Marathon Admin</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #f8fafc; color: #0f172a; font-size: 14px; }
+
+  /* ── Auth gate ── */
+  #auth-gate { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  .auth-card { background: white; border: 1px solid #e2e8f0; border-radius: 16px; padding: 40px; width: 340px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
+  .auth-card h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .auth-card p { color: #64748b; font-size: 13px; margin-bottom: 24px; }
+  .auth-card label { display: block; font-size: 12px; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+  .auth-card input { width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none; transition: border-color 0.15s; }
+  .auth-card input:focus { border-color: #f97316; }
+  .auth-card button { width: 100%; padding: 10px; background: #f97316; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 12px; transition: background 0.15s; }
+  .auth-card button:hover { background: #ea580c; }
+  .auth-error { color: #dc2626; font-size: 13px; margin-top: 8px; display: none; }
+
+  /* ── Main layout ── */
+  #app { display: none; }
+  header { background: white; border-bottom: 1px solid #e2e8f0; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 56px; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 16px; font-weight: 700; }
+  header span { font-size: 12px; color: #94a3b8; margin-left: 8px; }
+  .logout-btn { font-size: 12px; color: #64748b; background: none; border: 1px solid #e2e8f0; border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+  .logout-btn:hover { border-color: #cbd5e1; color: #0f172a; }
+  main { max-width: 960px; margin: 0 auto; padding: 24px; }
+
+  /* ── Tabs ── */
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 4px; width: fit-content; }
+  .tab { padding: 7px 18px; border-radius: 7px; border: none; background: none; font-size: 13px; font-weight: 600; color: #64748b; cursor: pointer; transition: all 0.15s; }
+  .tab.active { background: #f97316; color: white; }
+
+  /* ── Section header ── */
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .section-title { font-size: 16px; font-weight: 700; }
+  .add-btn { padding: 8px 16px; background: #0f172a; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .add-btn:hover { background: #1e293b; }
+
+  /* ── Table ── */
+  .table-wrap { background: white; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; }
+  th { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #f1f5f9; background: #f8fafc; }
+  td { padding: 12px 14px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #fafbfc; }
+  .col-sort { width: 56px; }
+  .col-actions { width: 80px; text-align: right; }
+  .sort-btns { display: flex; flex-direction: column; gap: 2px; }
+  .sort-btn { background: none; border: 1px solid #e2e8f0; border-radius: 3px; width: 22px; height: 18px; cursor: pointer; font-size: 10px; color: #94a3b8; display: flex; align-items: center; justify-content: center; }
+  .sort-btn:hover:not(:disabled) { border-color: #f97316; color: #f97316; }
+  .sort-btn:disabled { opacity: 0.3; cursor: default; }
+  .row-name { font-weight: 600; }
+  .row-sub { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+  .edit-btn, .del-btn { background: none; border: none; cursor: pointer; font-size: 15px; padding: 2px 4px; border-radius: 4px; }
+  .edit-btn:hover { background: #f1f5f9; }
+  .del-btn:hover { background: #fee2e2; }
+  .empty-row td { text-align: center; color: #94a3b8; padding: 32px; }
+
+  /* ── Modal ── */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; display: flex; align-items: center; justify-content: center; }
+  .modal { background: white; border-radius: 16px; padding: 28px; width: 500px; max-width: calc(100vw - 32px); max-height: calc(100vh - 48px); overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+  .modal h2 { font-size: 17px; font-weight: 700; margin-bottom: 20px; }
+  .modal .close-btn { float: right; background: none; border: none; font-size: 20px; cursor: pointer; color: #94a3b8; margin-top: -4px; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 12px; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 5px; }
+  .field input, .field textarea { width: 100%; padding: 9px 11px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: inherit; outline: none; transition: border-color 0.15s; resize: vertical; }
+  .field input:focus, .field textarea:focus { border-color: #f97316; }
+  .field .hint { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+  .cancel-btn { padding: 9px 20px; background: none; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .cancel-btn:hover { border-color: #cbd5e1; }
+  .save-btn { padding: 9px 24px; background: #f97316; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .save-btn:hover { background: #ea580c; }
+  .save-btn:disabled { opacity: 0.5; cursor: default; }
+
+  /* ── Toast ── */
+  #toast { position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 600; color: white; z-index: 999; opacity: 0; transform: translateY(8px); transition: all 0.25s; pointer-events: none; }
+  #toast.show { opacity: 1; transform: translateY(0); }
+  #toast.success { background: #16a34a; }
+  #toast.error { background: #dc2626; }
+</style>
+</head>
+<body>
+
+<!-- Auth gate -->
+<div id="auth-gate">
+  <div class="auth-card">
+    <h1>🏃 Marathon Admin</h1>
+    <p>Enter your password to continue</p>
+    <label for="pwd-input">Password</label>
+    <input type="password" id="pwd-input" placeholder="••••••••" autocomplete="current-password"/>
+    <div class="auth-error" id="auth-error">Incorrect password. Try again.</div>
+    <button id="pwd-submit">Sign in</button>
+  </div>
+</div>
+
+<!-- Main app -->
+<div id="app">
+  <header>
+    <div><h1>London Marathon Admin <span>londonmarathon.outbuild.uk</span></h1></div>
+    <button class="logout-btn" id="logout-btn">Sign out</button>
+  </header>
+  <main>
+    <div class="tabs">
+      <button class="tab active" data-tab="markers">Official Markers</button>
+      <button class="tab" data-tab="spots">Spectator Spots</button>
+    </div>
+
+    <!-- Official Markers tab -->
+    <div id="tab-markers">
+      <div class="section-header">
+        <span class="section-title">Official Course Markers</span>
+        <button class="add-btn" id="add-marker-btn">+ Add Marker</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th class="col-sort">Order</th>
+            <th>Title</th>
+            <th>Distance</th>
+            <th>Coordinates</th>
+            <th class="col-actions">Actions</th>
+          </tr></thead>
+          <tbody id="markers-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Spectator Spots tab -->
+    <div id="tab-spots" style="display:none">
+      <div class="section-header">
+        <span class="section-title">Spectator Viewing Spots</span>
+        <button class="add-btn" id="add-spot-btn">+ Add Spot</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th class="col-sort">Order</th>
+            <th>Name</th>
+            <th>Distance</th>
+            <th>Stations</th>
+            <th class="col-actions">Actions</th>
+          </tr></thead>
+          <tbody id="spots-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Modal -->
+<div class="modal-backdrop" id="modal" style="display:none">
+  <div class="modal" id="modal-content"></div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+const PASSWORD = 'london 26';
+const SESSION_KEY = 'lm_admin_auth';
+
+// ── Auth ──────────────────────────────────────────────────────────────
+function isAuthed() { return sessionStorage.getItem(SESSION_KEY) === '1'; }
+function setAuthed(v) { v ? sessionStorage.setItem(SESSION_KEY, '1') : sessionStorage.removeItem(SESSION_KEY); }
+
+function showApp() {
+  document.getElementById('auth-gate').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  loadAll();
+}
+
+if (isAuthed()) { showApp(); }
+
+document.getElementById('pwd-submit').onclick = () => {
+  const val = document.getElementById('pwd-input').value;
+  if (val === PASSWORD) {
+    setAuthed(true);
+    document.getElementById('auth-error').style.display = 'none';
+    showApp();
+  } else {
+    document.getElementById('auth-error').style.display = 'block';
+    document.getElementById('pwd-input').value = '';
+    document.getElementById('pwd-input').focus();
+  }
+};
+document.getElementById('pwd-input').onkeydown = e => { if (e.key === 'Enter') document.getElementById('pwd-submit').click(); };
+document.getElementById('logout-btn').onclick = () => { setAuthed(false); location.reload(); };
+
+// ── Tabs ──────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.tab;
+    document.getElementById('tab-markers').style.display = tab === 'markers' ? '' : 'none';
+    document.getElementById('tab-spots').style.display   = tab === 'spots'   ? '' : 'none';
+  };
+});
+
+// ── API helpers ───────────────────────────────────────────────────────
+function apiFetch(url, opts = {}) {
+  opts.headers = { 'Content-Type': 'application/json', 'X-Admin-Password': PASSWORD, ...(opts.headers || {}) };
+  return fetch(url, opts).then(async r => {
+    if (r.status === 204) return null;
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || r.statusText);
+    return data;
+  });
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg, type = 'success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = ''; }, 3000);
+}
+
+// ── Modal helpers ─────────────────────────────────────────────────────
+function openModal(html) {
+  document.getElementById('modal-content').innerHTML = html;
+  document.getElementById('modal').style.display = 'flex';
+}
+function closeModal() { document.getElementById('modal').style.display = 'none'; }
+document.getElementById('modal').onclick = e => { if (e.target === document.getElementById('modal')) closeModal(); };
+
+// ── Data state ────────────────────────────────────────────────────────
+let markers = [];
+let spots = [];
+
+function loadAll() { loadMarkers(); loadSpots(); }
+
+// ════════════════════════════════════════════════════════════════════
+//  OFFICIAL MARKERS
+// ════════════════════════════════════════════════════════════════════
+async function loadMarkers() {
+  try {
+    markers = await apiFetch('/api/admin/official-markers');
+    renderMarkers();
+  } catch(e) { toast('Failed to load markers: ' + e.message, 'error'); }
+}
+
+function renderMarkers() {
+  const tbody = document.getElementById('markers-tbody');
+  if (!markers.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="5">No markers yet. Click "+ Add Marker" to create one.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = markers.map((m, i) => `
+    <tr>
+      <td class="col-sort">
+        <div class="sort-btns">
+          <button class="sort-btn" ${i === 0 ? 'disabled' : ''} onclick="moveMarker('${m.id}', -1)" title="Move up">▲</button>
+          <button class="sort-btn" ${i === markers.length-1 ? 'disabled' : ''} onclick="moveMarker('${m.id}', 1)" title="Move down">▼</button>
+        </div>
+      </td>
+      <td>
+        <div class="row-name">${esc(m.title)}</div>
+        <div class="row-sub">${esc(m.description)}</div>
+      </td>
+      <td>${m.distance_km} km</td>
+      <td style="font-family:monospace;font-size:12px">${m.lat.toFixed(4)}, ${m.lng.toFixed(4)}</td>
+      <td class="col-actions">
+        <button class="edit-btn" onclick="editMarker('${m.id}')" title="Edit">✏️</button>
+        <button class="del-btn" onclick="deleteMarker('${m.id}')" title="Delete">🗑️</button>
+      </td>
+    </tr>`).join('');
+}
+
+async function moveMarker(id, dir) {
+  const idx = markers.findIndex(m => m.id === id);
+  const swapIdx = idx + dir;
+  if (swapIdx < 0 || swapIdx >= markers.length) return;
+  [markers[idx], markers[swapIdx]] = [markers[swapIdx], markers[idx]];
+  // Reassign sort_order
+  const updates = markers.map((m, i) => apiFetch(`/api/admin/official-markers/${m.id}`, {
+    method: 'PUT', body: JSON.stringify({ ...m, sort_order: i })
+  }));
+  try {
+    await Promise.all(updates);
+    markers = await apiFetch('/api/admin/official-markers');
+    renderMarkers();
+    toast('Order saved');
+  } catch(e) { toast('Failed to reorder: ' + e.message, 'error'); loadMarkers(); }
+}
+
+function markerModalHtml(m = null) {
+  const t = v => m ? m[v] : '';
+  return `
+    <button class="close-btn" onclick="closeModal()">×</button>
+    <h2>${m ? 'Edit Marker' : 'Add Marker'}</h2>
+    <div class="field"><label>Title *</label><input id="f-title" value="${esc(t('title'))}" placeholder="e.g. Tower Bridge"/></div>
+    <div class="field"><label>Description</label><input id="f-desc" value="${esc(t('description'))}" placeholder="Short note shown on map"/></div>
+    <div class="field-row">
+      <div class="field"><label>Distance (km) *</label><input id="f-dist" type="number" step="0.001" value="${t('distance_km')}" placeholder="20"/></div>
+      <div class="field"><label>Sort order</label><input id="f-sort" type="number" value="${m ? m.sort_order : markers.length}" placeholder="0"/></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Latitude *</label><input id="f-lat" type="number" step="0.0001" value="${t('lat')}" placeholder="51.5056"/></div>
+      <div class="field"><label>Longitude *</label><input id="f-lng" type="number" step="0.0001" value="${t('lng')}" placeholder="-0.0754"/></div>
+    </div>
+    <div class="modal-actions">
+      <button class="cancel-btn" onclick="closeModal()">Cancel</button>
+      <button class="save-btn" id="modal-save" onclick="saveMarker(${m ? `'${m.id}'` : 'null'})">Save</button>
+    </div>`;
+}
+
+document.getElementById('add-marker-btn').onclick = () => openModal(markerModalHtml());
+function editMarker(id) { openModal(markerModalHtml(markers.find(m => m.id === id))); }
+
+async function saveMarker(id) {
+  const title = document.getElementById('f-title').value.trim();
+  const dist = parseFloat(document.getElementById('f-dist').value);
+  const lat   = parseFloat(document.getElementById('f-lat').value);
+  const lng   = parseFloat(document.getElementById('f-lng').value);
+  if (!title || isNaN(dist) || isNaN(lat) || isNaN(lng)) { toast('Fill in all required fields', 'error'); return; }
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) { toast('Invalid lat/lng', 'error'); return; }
+
+  const body = {
+    title,
+    description: document.getElementById('f-desc').value.trim(),
+    distance_km: dist,
+    lat, lng,
+    sort_order: parseInt(document.getElementById('f-sort').value) || 0,
+  };
+
+  const btn = document.getElementById('modal-save');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    if (id) {
+      await apiFetch(`/api/admin/official-markers/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+    } else {
+      await apiFetch('/api/admin/official-markers', { method: 'POST', body: JSON.stringify(body) });
+    }
+    closeModal();
+    await loadMarkers();
+    toast(id ? 'Marker updated' : 'Marker created');
+  } catch(e) { toast(e.message, 'error'); btn.disabled = false; btn.textContent = 'Save'; }
+}
+
+async function deleteMarker(id) {
+  const m = markers.find(x => x.id === id);
+  if (!confirm(`Delete "${m?.title}"? This cannot be undone.`)) return;
+  try {
+    await apiFetch(`/api/admin/official-markers/${id}`, { method: 'DELETE' });
+    await loadMarkers();
+    toast('Marker deleted');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  SPECTATOR SPOTS
+// ════════════════════════════════════════════════════════════════════
+async function loadSpots() {
+  try {
+    spots = await apiFetch('/api/admin/spectator-spots');
+    renderSpots();
+  } catch(e) { toast('Failed to load spots: ' + e.message, 'error'); }
+}
+
+function renderSpots() {
+  const tbody = document.getElementById('spots-tbody');
+  if (!spots.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="5">No spots yet. Click "+ Add Spot" to create one.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = spots.map((s, i) => {
+    const stations = parseStations(s.nearest_stations);
+    return `
+    <tr>
+      <td class="col-sort">
+        <div class="sort-btns">
+          <button class="sort-btn" ${i === 0 ? 'disabled' : ''} onclick="moveSpot('${s.id}', -1)">▲</button>
+          <button class="sort-btn" ${i === spots.length-1 ? 'disabled' : ''} onclick="moveSpot('${s.id}', 1)">▼</button>
+        </div>
+      </td>
+      <td>
+        <div class="row-name">${esc(s.name)}</div>
+        <div class="row-sub">${esc(s.description.slice(0, 80))}${s.description.length > 80 ? '…' : ''}</div>
+      </td>
+      <td>${s.distance_km} km<br><span style="color:#94a3b8;font-size:12px">mi ${s.distance_mile}</span></td>
+      <td style="font-size:12px;color:#475569">${stations.slice(0,2).map(esc).join('<br>')}${stations.length > 2 ? `<br>+${stations.length-2} more` : ''}</td>
+      <td class="col-actions">
+        <button class="edit-btn" onclick="editSpot('${s.id}')" title="Edit">✏️</button>
+        <button class="del-btn" onclick="deleteSpot('${s.id}')" title="Delete">🗑️</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function parseStations(raw) {
+  if (Array.isArray(raw)) return raw;
+  try { return JSON.parse(raw || '[]'); } catch { return []; }
+}
+
+async function moveSpot(id, dir) {
+  const idx = spots.findIndex(s => s.id === id);
+  const swapIdx = idx + dir;
+  if (swapIdx < 0 || swapIdx >= spots.length) return;
+  [spots[idx], spots[swapIdx]] = [spots[swapIdx], spots[idx]];
+  const updates = spots.map((s, i) => apiFetch(`/api/admin/spectator-spots/${s.id}`, {
+    method: 'PUT', body: JSON.stringify({ ...s, nearest_stations: parseStations(s.nearest_stations), sort_order: i })
+  }));
+  try {
+    await Promise.all(updates);
+    spots = await apiFetch('/api/admin/spectator-spots');
+    renderSpots();
+    toast('Order saved');
+  } catch(e) { toast('Failed to reorder: ' + e.message, 'error'); loadSpots(); }
+}
+
+function spotModalHtml(s = null) {
+  const t = v => s ? s[v] : '';
+  const stations = s ? parseStations(s.nearest_stations).join(', ') : '';
+  return `
+    <button class="close-btn" onclick="closeModal()">×</button>
+    <h2>${s ? 'Edit Spot' : 'Add Spot'}</h2>
+    <div class="field"><label>Name *</label><input id="sf-name" value="${esc(t('name'))}" placeholder="e.g. Tower Bridge"/></div>
+    <div class="field"><label>Description</label><textarea id="sf-desc" rows="3" placeholder="What makes this spot good for spectators?">${esc(t('description'))}</textarea></div>
+    <div class="field-row">
+      <div class="field"><label>Distance (km) *</label><input id="sf-dist-km" type="number" step="0.01" value="${t('distance_km')}" placeholder="20.1"/></div>
+      <div class="field"><label>Distance (miles)</label><input id="sf-dist-mi" type="number" step="0.01" value="${t('distance_mile')}" placeholder="12.5"/><div class="hint">Leave blank to auto-calculate</div></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Latitude *</label><input id="sf-lat" type="number" step="0.0001" value="${t('lat')}" placeholder="51.5055"/></div>
+      <div class="field"><label>Longitude *</label><input id="sf-lng" type="number" step="0.0001" value="${t('lng')}" placeholder="-0.0753"/></div>
+    </div>
+    <div class="field">
+      <label>Nearest Stations</label>
+      <input id="sf-stations" value="${esc(stations)}" placeholder="London Bridge NR/Jubilee, Tower Hill, Tower Gateway DLR"/>
+      <div class="hint">Comma-separated list</div>
+    </div>
+    <div class="field"><label>Crowd Notes</label><textarea id="sf-notes" rows="2" placeholder="Tips for spectators arriving/leaving">${esc(t('crowd_notes'))}</textarea></div>
+    <div class="field"><label>Sort order</label><input id="sf-sort" type="number" value="${s ? s.sort_order : spots.length}" placeholder="0"/></div>
+    <div class="modal-actions">
+      <button class="cancel-btn" onclick="closeModal()">Cancel</button>
+      <button class="save-btn" id="smodal-save" onclick="saveSpot(${s ? `'${s.id}'` : 'null'})">Save</button>
+    </div>`;
+}
+
+document.getElementById('add-spot-btn').onclick = () => openModal(spotModalHtml());
+function editSpot(id) { openModal(spotModalHtml(spots.find(s => s.id === id))); }
+
+async function saveSpot(id) {
+  const name    = document.getElementById('sf-name').value.trim();
+  const distKm  = parseFloat(document.getElementById('sf-dist-km').value);
+  const distMiRaw = document.getElementById('sf-dist-mi').value;
+  const distMi  = distMiRaw ? parseFloat(distMiRaw) : null;
+  const lat     = parseFloat(document.getElementById('sf-lat').value);
+  const lng     = parseFloat(document.getElementById('sf-lng').value);
+  if (!name || isNaN(distKm) || isNaN(lat) || isNaN(lng)) { toast('Fill in all required fields', 'error'); return; }
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) { toast('Invalid lat/lng', 'error'); return; }
+
+  const stationsRaw = document.getElementById('sf-stations').value;
+  const stations = stationsRaw.split(',').map(s => s.trim()).filter(Boolean);
+
+  const body = {
+    name,
+    description: document.getElementById('sf-desc').value.trim(),
+    distance_km: distKm,
+    distance_mile: distMi,
+    lat, lng,
+    nearest_stations: stations,
+    crowd_notes: document.getElementById('sf-notes').value.trim(),
+    sort_order: parseInt(document.getElementById('sf-sort').value) || 0,
+  };
+
+  const btn = document.getElementById('smodal-save');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    if (id) {
+      await apiFetch(`/api/admin/spectator-spots/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+    } else {
+      await apiFetch('/api/admin/spectator-spots', { method: 'POST', body: JSON.stringify(body) });
+    }
+    closeModal();
+    await loadSpots();
+    toast(id ? 'Spot updated' : 'Spot created');
+  } catch(e) { toast(e.message, 'error'); btn.disabled = false; btn.textContent = 'Save'; }
+}
+
+async function deleteSpot(id) {
+  const s = spots.find(x => x.id === id);
+  if (!confirm(`Delete "${s?.name}"? This cannot be undone.`)) return;
+  try {
+    await apiFetch(`/api/admin/spectator-spots/${id}`, { method: 'DELETE' });
+    await loadSpots();
+    toast('Spot deleted');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ── Escape HTML ───────────────────────────────────────────────────────
+function esc(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
