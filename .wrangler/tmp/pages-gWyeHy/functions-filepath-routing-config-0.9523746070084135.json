@@ -1,0 +1,13 @@
+{
+  "routes": [
+    {
+      "routePath": "/api/markers",
+      "mountPath": "/api",
+      "method": "",
+      "module": [
+        "api/markers.ts:onRequest"
+      ]
+    }
+  ],
+  "baseURL": "/"
+}

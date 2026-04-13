@@ -5,11 +5,6 @@ export interface GpxPoint {
   ele: number;
 }
 
-export interface ElevSample {
-  pct: number;
-  ele: number;
-}
-
 function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -62,56 +57,4 @@ export function parseGpx(text: string): GpxPoint[] {
 
   if (!raw.length) return [];
   return smooth(raw);
-}
-
-export function sampleElevationProfile(points: GpxPoint[], numSamples = 200): ElevSample[] {
-  if (!points.length) return [];
-  const totalDist = points[points.length - 1].distKm;
-  if (totalDist === 0) return [];
-  if (numSamples <= 1) return [{ pct: 0, ele: points[0].ele }];
-
-  return Array.from({ length: numSamples }, (_, i) => {
-    const pct = i / (numSamples - 1);
-    return { pct, ele: interpolateEle(points, pct * totalDist) };
-  });
-}
-
-function interpolateEle(points: GpxPoint[], targetDist: number): number {
-  if (!points.length) return 0;
-  if (targetDist <= points[0].distKm) return points[0].ele;
-  const last = points[points.length - 1];
-  if (targetDist >= last.distKm) return last.ele;
-  for (let i = 0; i < points.length - 1; i++) {
-    if (points[i].distKm <= targetDist && points[i + 1].distKm >= targetDist) {
-      const span = points[i + 1].distKm - points[i].distKm;
-      if (span === 0) return points[i].ele;
-      const t = (targetDist - points[i].distKm) / span;
-      return points[i].ele + t * (points[i + 1].ele - points[i].ele);
-    }
-  }
-  return last.ele;
-}
-
-/** Interpolate lat/lng position at a given distance along the track */
-export function interpolatePosition(
-  points: GpxPoint[],
-  targetDistKm: number,
-): { lat: number; lng: number } | null {
-  if (!points.length) return null;
-  if (targetDistKm <= 0) return { lat: points[0].lat, lng: points[0].lng };
-  const last = points[points.length - 1];
-  if (targetDistKm >= last.distKm) return { lat: last.lat, lng: last.lng };
-
-  for (let i = 0; i < points.length - 1; i++) {
-    if (points[i].distKm <= targetDistKm && points[i + 1].distKm >= targetDistKm) {
-      const span = points[i + 1].distKm - points[i].distKm;
-      if (span === 0) return { lat: points[i].lat, lng: points[i].lng };
-      const t = (targetDistKm - points[i].distKm) / span;
-      return {
-        lat: points[i].lat + t * (points[i + 1].lat - points[i].lat),
-        lng: points[i].lng + t * (points[i + 1].lng - points[i].lng),
-      };
-    }
-  }
-  return { lat: last.lat, lng: last.lng };
 }

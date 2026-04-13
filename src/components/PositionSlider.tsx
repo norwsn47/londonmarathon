@@ -1,6 +1,5 @@
-import { formatDuration } from '../lib/paceUtils';
+import { formatDuration, getPositionAtTime, totalTimeSeconds, MARATHON_KM, KM_PER_MILE } from '../lib/paceUtils';
 import type { Segment } from '../lib/types';
-import { getPositionAtTime, totalTimeSeconds, MARATHON_KM } from '../lib/paceUtils';
 
 interface Props {
   segments: Segment[];
@@ -14,7 +13,7 @@ export default function PositionSlider({ segments, elapsedSec, onChange, display
   const posKm = getPositionAtTime(segments, elapsedSec);
   const pct = Math.min(100, (posKm / MARATHON_KM) * 100);
   const posDisplay = displayUnit === 'mi'
-    ? `${(posKm * 0.621371).toFixed(1)} mi`
+    ? `${(posKm / KM_PER_MILE).toFixed(1)} mi`
     : `${posKm.toFixed(1)} km`;
 
   return (

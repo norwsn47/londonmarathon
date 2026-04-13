@@ -1,11 +1,8 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import type { Segment, Strategy, Unit, NegativePct, CourseMarker } from './lib/types';
+import type { Segment, Strategy, CourseMarker } from './lib/types';
 import {
   generateSegments,
   totalTimeSeconds,
-  getAutoBalanceIdxs,
-  calcAutoBalancePace,
-  getPaceBounds,
   getPositionAtTime,
   formatDuration,
 } from './lib/paceUtils';
@@ -28,35 +25,24 @@ const OFFICIAL_MARKERS: CourseMarker[] = [
 
 const DEFAULT_TARGET = 4 * 3600;
 
+const UNIT = 'km' as const;
+const NEGATIVE_PCT = 3;
+
 export default function App() {
   // Pace plan state
   const [targetSec, setTargetSec] = useState(DEFAULT_TARGET);
-  const [unit] = useState<Unit>('km');
   const [strategy, setStrategy] = useState<Strategy>('even');
-  const [negativePct] = useState<NegativePct>(3);
   const [segments, setSegments] = useState<Segment[]>(() =>
-    generateSegments(DEFAULT_TARGET, 'even', 'km'),
+    generateSegments(DEFAULT_TARGET, 'even', UNIT),
   );
-  const [autoBalance, setAutoBalance] = useState(false);
 
   // Map / GPX state
   const [gpxPoints, setGpxPoints] = useState<GpxPoint[]>([]);
   const [elapsedSec, setElapsedSec] = useState(0);
   const [displayUnit, setDisplayUnit] = useState<'km' | 'mi'>('km');
 
-  const autoBalanceIdxs = useMemo(() => getAutoBalanceIdxs(segments), [segments]);
-
-  const displaySegments = useMemo<Segment[]>(() => {
-    if (!autoBalance || strategy !== 'custom') return segments;
-    const { min, max } = getPaceBounds(targetSec);
-    const pace = calcAutoBalancePace(segments, autoBalanceIdxs, targetSec);
-    if (pace < min || pace > max) return segments;
-    const idxSet = new Set(autoBalanceIdxs);
-    return segments.map((s, i) => (idxSet.has(i) ? { ...s, paceSecPerKm: pace } : s));
-  }, [autoBalance, strategy, segments, autoBalanceIdxs, targetSec]);
-
-  const projectedSec = totalTimeSeconds(displaySegments);
-  const positionKm = getPositionAtTime(displaySegments, elapsedSec);
+  const projectedSec = totalTimeSeconds(segments);
+  const positionKm = getPositionAtTime(segments, elapsedSec);
 
   // Gun start time — user-configurable, default 10:00
   const [startTimeStr, setStartTimeStr] = useState('10:00');
@@ -68,8 +54,8 @@ export default function App() {
   }, [startTimeStr]);
 
   const spectatorPredictions = useMemo<SpotPrediction[]>(
-    () => predictSpotTimes(runnerStartTime, displaySegments),
-    [runnerStartTime, displaySegments],
+    () => predictSpotTimes(runnerStartTime, segments),
+    [runnerStartTime, segments],
   );
 
   // Load London Marathon GPX from public folder
@@ -86,17 +72,16 @@ export default function App() {
   const handleTargetChange = useCallback((newTarget: number) => {
     setTargetSec(newTarget);
     if (strategy !== 'custom') {
-      setSegments(generateSegments(newTarget, strategy, unit, negativePct));
+      setSegments(generateSegments(newTarget, strategy, UNIT, NEGATIVE_PCT));
     }
-  }, [strategy, unit, negativePct]);
+  }, [strategy]);
 
   const handleStrategySelect = useCallback((s: Strategy) => {
     setStrategy(s);
-    setAutoBalance(false);
     if (s !== 'custom') {
-      setSegments(generateSegments(targetSec, s, unit, negativePct));
+      setSegments(generateSegments(targetSec, s, UNIT, NEGATIVE_PCT));
     }
-  }, [targetSec, unit, negativePct]);
+  }, [targetSec]);
 
   return (
     <div className="w-screen h-screen overflow-hidden relative font-sans">
@@ -195,7 +180,7 @@ export default function App() {
         {/* Position slider */}
         <div className="bg-white/95 backdrop-blur-sm rounded-2xl border border-border shadow-xl">
           <PositionSlider
-            segments={displaySegments}
+            segments={segments}
             elapsedSec={elapsedSec}
             onChange={setElapsedSec}
             displayUnit={displayUnit}

@@ -41,23 +41,20 @@ const spectatorIcon = L.divIcon({
   popupAnchor: [0, -20],
 });
 
-function createLetterIcon(letter: string): L.DivIcon {
+function createLetterIcon(letter: string, glowing = false): L.DivIcon {
+  const size = glowing ? 28 : 20;
+  const half = size / 2;
+  const lineHeight = size - 4;
+  const shadow = glowing
+    ? '0 0 0 5px rgba(168,85,247,0.4),0 0 18px 6px rgba(168,85,247,0.55)'
+    : '0 1px 4px rgba(0,0,0,0.4)';
+  const fontSize = glowing ? 'var(--text-sm)' : 'var(--text-xs)';
   return L.divIcon({
     className: '',
-    html: `<div style="width:20px;height:20px;background:#a855f7;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.4);color:white;font-size:var(--text-xs);font-weight:700;font-family:system-ui,sans-serif;text-align:center;line-height:16px">${letter}</div>`,
-    iconSize: [20, 20],
-    iconAnchor: [10, 10],
-    popupAnchor: [0, -12],
-  });
-}
-
-function createLetterIconGlowing(letter: string): L.DivIcon {
-  return L.divIcon({
-    className: '',
-    html: `<div style="width:28px;height:28px;background:#a855f7;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 5px rgba(168,85,247,0.4),0 0 18px 6px rgba(168,85,247,0.55);color:white;font-size:var(--text-sm);font-weight:700;font-family:system-ui,sans-serif;text-align:center;line-height:24px">${letter}</div>`,
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
-    popupAnchor: [0, -16],
+    html: `<div style="width:${size}px;height:${size}px;background:#a855f7;border:2px solid #fff;border-radius:50%;box-shadow:${shadow};color:white;font-size:${fontSize};font-weight:700;font-family:system-ui,sans-serif;text-align:center;line-height:${lineHeight}px">${letter}</div>`,
+    iconSize: [size, size],
+    iconAnchor: [half, half],
+    popupAnchor: [0, -(half + 2)],
   });
 }
 
@@ -152,7 +149,7 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
         const layer = spectatorLayersRef.current.get(spot.id);
         if (!layer) return;
         const letter = String.fromCharCode(65 + i);
-        layer.setIcon(hoveredSpotId === spot.id ? createLetterIconGlowing(letter) : createLetterIcon(letter));
+        layer.setIcon(hoveredSpotId === spot.id ? createLetterIcon(letter, true) : createLetterIcon(letter));
       });
     } else {
       for (const [, layer] of spectatorLayersRef.current) {

@@ -64,58 +64,12 @@ export function totalTimeSeconds(segments: Segment[]): number {
   return segments.reduce((acc, s) => acc + s.paceSecPerKm * s.distanceKm, 0);
 }
 
-export function avgPaceSecPerKm(segments: Segment[]): number {
-  return totalTimeSeconds(segments) / MARATHON_KM;
-}
-
-export function formatPace(secPerKm: number, unit: Unit): string {
-  const sec = unit === 'km' ? secPerKm : secPerKm * KM_PER_MILE;
-  const m = Math.floor(sec / 60);
-  const s = Math.round(sec % 60);
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
 export function formatDuration(seconds: number): string {
   const total = Math.round(seconds);
   const h = Math.floor(total / 3600);
   const m = Math.floor((total % 3600) / 60);
   const s = total % 60;
   return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-}
-
-export function getPaceBounds(targetSec: number): { min: number; max: number } {
-  const avg = targetSec / MARATHON_KM;
-  return {
-    min: Math.max(150, avg * 0.9),
-    max: Math.min(720, avg * 1.1),
-  };
-}
-
-export function getAutoBalanceIdxs(segments: Segment[]): number[] {
-  const n = segments.length;
-  return [n - 2, n - 1];
-}
-
-export function calcAutoBalancePace(
-  segments: Segment[],
-  autoIdxs: number[],
-  targetSec: number,
-): number {
-  const idxSet = new Set(autoIdxs);
-  const otherTime = segments.reduce(
-    (acc, s, i) => (idxSet.has(i) ? acc : acc + s.paceSecPerKm * s.distanceKm),
-    0,
-  );
-  const lockedDist = autoIdxs.reduce((acc, i) => acc + segments[i].distanceKm, 0);
-  return (targetSec - otherTime) / lockedDist;
-}
-
-export function parseDurationToSec(str: string): number | null {
-  const parts = str.split(':').map((p) => parseInt(p, 10));
-  if (parts.some(isNaN)) return null;
-  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-  if (parts.length === 2) return parts[0] * 3600 + parts[1] * 60;
-  return null;
 }
 
 /** Returns the cumulative elapsed time (seconds) at each km mark given segments */
