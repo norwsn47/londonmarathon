@@ -272,7 +272,7 @@ export default function CourseMap({ gpxPoints, markers, spectatorPredictions = [
 
       {/* Zoomed-out: card row pinned to bottom, cards expand upward on hover/click */}
       {zoom < ZOOM_THRESHOLD && sortedSpots.length > 0 && (
-        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 900 }}>
+        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 900, pointerEvents: 'none' }}>
           <div style={{ position: 'relative', padding: '0 8px 8px 8px' }}>
 
             {/* Right-fade gradient + scroll arrow — anchored to bottom */}
@@ -291,7 +291,7 @@ export default function CourseMap({ gpxPoints, markers, spectatorPredictions = [
                     background: 'white', border: '1px solid #e2e8f0',
                     boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
                     cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: '#7c3aed',
+                    color: '#7c3aed', pointerEvents: 'auto',
                   }}
                   title="Scroll right"
                 >
@@ -310,6 +310,7 @@ export default function CourseMap({ gpxPoints, markers, spectatorPredictions = [
                 display: 'flex', flexDirection: 'row', alignItems: 'flex-end', gap: 6,
                 overflowX: 'auto', scrollbarWidth: 'none',
                 paddingRight: sortedSpots.length > 4 ? 52 : 0,
+                pointerEvents: 'auto',
               }}
             >
               {sortedSpots.map((spot, i) => {
@@ -331,9 +332,9 @@ export default function CourseMap({ gpxPoints, markers, spectatorPredictions = [
                       borderRadius: 10,
                       padding: isActive ? '8px 10px 8px 8px' : '6px 10px 6px 7px',
                       boxShadow: isSelected ? '0 4px 16px rgba(168,85,247,0.28)' : isActive ? '0 2px 10px rgba(168,85,247,0.18)' : '0 1px 3px rgba(0,0,0,0.08)',
-                      width: 176, flexShrink: 0,
+                      width: isActive ? 264 : 176, flexShrink: 0,
                       cursor: 'pointer',
-                      transition: 'border-color 0.18s, box-shadow 0.18s, background 0.18s, padding 0.18s',
+                      transition: 'border-color 0.18s, box-shadow 0.18s, background 0.18s, padding 0.18s, width 0.18s',
                     }}
                   >
                     {/* Compact row — always visible */}
