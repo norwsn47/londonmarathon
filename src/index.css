@@ -71,8 +71,9 @@
   display: none !important;
 }
 
-/* Hide scrollbar on the zoomed-out spectator key panel (horizontal scroll) */
-.spectator-key-panel::-webkit-scrollbar {
+/* Hide scrollbars on the zoomed-out spectator key panel and its cards */
+.spectator-key-panel::-webkit-scrollbar,
+.spectator-key-panel > div::-webkit-scrollbar {
   display: none;
 }
 .spectator-key-panel {
