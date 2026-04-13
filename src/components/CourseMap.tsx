@@ -29,13 +29,23 @@ const userIcon = L.divIcon({
   popupAnchor: [0, -10],
 });
 
-// Purple circle icon for spectator viewing spots
+// Binoculars icon for spectator viewing spots
 const spectatorIcon = L.divIcon({
   className: '',
-  html: '<div style="width:12px;height:12px;background:#a855f7;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.5)"></div>',
-  iconSize: [12, 12],
-  iconAnchor: [6, 6],
-  popupAnchor: [0, -10],
+  html: `<div style="filter:drop-shadow(0 1px 4px rgba(0,0,0,0.4))">
+    <svg width="22" height="16" viewBox="0 0 22 16" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2.5" y="1" width="5" height="6" rx="1.5" fill="#a855f7" stroke="white" stroke-width="1.2"/>
+      <rect x="14.5" y="1" width="5" height="6" rx="1.5" fill="#a855f7" stroke="white" stroke-width="1.2"/>
+      <rect x="8" y="3.5" width="6" height="3" fill="#a855f7"/>
+      <circle cx="5" cy="11" r="4.2" fill="#a855f7" stroke="white" stroke-width="1.5"/>
+      <circle cx="17" cy="11" r="4.2" fill="#a855f7" stroke="white" stroke-width="1.5"/>
+      <circle cx="5" cy="11" r="2.2" fill="white" opacity="0.2"/>
+      <circle cx="17" cy="11" r="2.2" fill="white" opacity="0.2"/>
+    </svg>
+  </div>`,
+  iconSize: [22, 16],
+  iconAnchor: [11, 11],
+  popupAnchor: [0, -14],
 });
 
 interface Props {
@@ -223,7 +233,7 @@ export default function CourseMap({ gpxPoints, markers, positionKm, onMapClick, 
       } else {
         const layer = L.marker([spot.lat, spot.lng], { icon: spectatorIcon })
           .bindPopup(popupHtml, { maxWidth: 260 })
-          .bindTooltip(spot.name, { permanent: true, direction: 'right', className: 'spectator-label', offset: [8, 0] })
+          .bindTooltip(`${spot.name} · Mile ${spot.distanceMile}`, { permanent: true, direction: 'right', className: 'spectator-label', offset: [8, 0] })
           .addTo(map);
         spectatorLayersRef.current.set(spot.id, layer);
       }
