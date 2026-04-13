@@ -111,7 +111,6 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
   const [zoom, setZoom] = useState(13);
   const [hoveredSpotId, setHoveredSpotId] = useState<string | null>(null);
   const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
-  const [popupLeft, setPopupLeft] = useState(8);
 
   // Spots sorted by course distance — defines numbering 1–N
   const sortedSpots = [...spectatorPredictions].sort((a, b) => a.distanceKm - b.distanceKm);
@@ -301,221 +300,138 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
     <div ref={wrapperRef} className="relative w-full h-full">
       <div ref={containerRef} style={{ height: '100%' }} />
 
-      {/* Zoomed-out: floating popup + compact card row pinned to bottom */}
-      {zoom < ZOOM_THRESHOLD && sortedSpots.length > 0 && (() => {
-        const activeId = selectedSpotId || hoveredSpotId;
-        const activeSpot = activeId ? sortedSpots.find(s => s.id === activeId) : null;
-        const activeIndex = activeSpot ? sortedSpots.indexOf(activeSpot) : -1;
-        const activeDistLabel = activeSpot
-          ? (displayUnit === 'mi' ? `Mi ${activeSpot.distanceMile}` : `${activeSpot.distanceKm} km`)
-          : '';
-        const mapWidth = wrapperRef.current?.offsetWidth ?? 600;
-        const POPUP_W = 288;
-        const clampedLeft = Math.max(8, Math.min(popupLeft, mapWidth - POPUP_W - 8));
+      {/* Zoomed-out: card row pinned to bottom, cards expand upward on hover/click */}
+      {zoom < ZOOM_THRESHOLD && sortedSpots.length > 0 && (
+        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 900 }}>
+          <div style={{ position: 'relative', padding: '0 8px 8px 8px' }}>
 
-        return (
-          <>
-            {/* Floating popup — above the card row */}
-            {activeSpot && (
-              <div style={{
-                position: 'absolute',
-                bottom: 76,
-                left: clampedLeft,
-                width: POPUP_W,
-                zIndex: 950,
-                background: 'rgba(255,255,255,0.98)',
-                border: '1.5px solid #a855f7',
-                borderRadius: 12,
-                padding: '10px 14px 12px 10px',
-                boxShadow: '0 8px 28px rgba(168,85,247,0.22)',
-                pointerEvents: selectedSpotId ? 'auto' : 'none',
-              }}>
-                {/* Header row */}
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
-                  <span style={{
-                    width: 22, height: 22, borderRadius: '50%',
-                    background: '#a855f7', color: 'white',
-                    fontSize: 'var(--text-sm)', fontWeight: 700,
-                    fontFamily: 'system-ui,sans-serif',
-                    textAlign: 'center', lineHeight: '22px', flexShrink: 0,
-                  }}>{String.fromCharCode(65 + activeIndex)}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: '#1e293b', letterSpacing: '0.01em' }}>
-                      {activeSpot.name}
-                    </div>
-                    <div style={{ display: 'flex', gap: 8, marginTop: 1 }}>
-                      <span style={{ fontSize: 'var(--text-xs)', color: '#94a3b8', letterSpacing: '0.02em' }}>{activeDistLabel}</span>
-                      {activeSpot.clockTime && (
-                        <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#ea580c' }}>{activeSpot.clockTime}</span>
-                      )}
-                    </div>
-                  </div>
-                  {selectedSpotId && (
-                    <button
-                      onClick={() => setSelectedSpotId(null)}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c4b5fd', fontSize: 16, lineHeight: 1, padding: 2, flexShrink: 0 }}
-                      title="Close"
-                    >×</button>
-                  )}
-                </div>
-
-                {/* Description */}
-                {activeSpot.description && (
-                  <div style={{ fontSize: 'var(--text-xs)', color: '#64748b', lineHeight: 1.5, letterSpacing: '0.02em', paddingLeft: 30, marginBottom: 8 }}>
-                    {activeSpot.description}
-                  </div>
-                )}
-
-                {/* Nearest stations */}
-                {activeSpot.nearestStations.length > 0 && (
-                  <div style={{ paddingLeft: 30, marginBottom: 7 }}>
-                    <div style={{ fontSize: 'var(--text-xs)', color: '#ea580c', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 4 }}>
-                      Nearest stations
-                    </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                      {activeSpot.nearestStations.map(s => (
-                        <span key={s} style={{
-                          background: '#f1f5f9', border: '1px solid #e2e8f0',
-                          borderRadius: 5, padding: '2px 6px',
-                          fontSize: 'var(--text-xs)', color: '#334155', letterSpacing: '0.02em',
-                        }}>{s}</span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Crowd notes */}
-                {activeSpot.crowdNotes && (
-                  <div style={{
-                    paddingLeft: 30,
-                    borderTop: '1px solid #f1f5f9', paddingTop: 7,
-                    fontSize: 'var(--text-xs)', color: '#64748b',
-                    lineHeight: 1.5, letterSpacing: '0.02em',
-                  }}>
-                    {activeSpot.crowdNotes}
-                  </div>
-                )}
-
-                {!selectedSpotId && (
-                  <div style={{ paddingLeft: 30, marginTop: 6, fontSize: 'var(--text-xs)', color: '#c4b5fd' }}>
-                    Click to pin open
-                  </div>
-                )}
-              </div>
+            {/* Right-fade gradient + scroll arrow — anchored to bottom */}
+            {sortedSpots.length > 4 && (
+              <>
+                <div style={{
+                  position: 'absolute', right: 8, bottom: 8, width: 72, height: 60,
+                  background: 'linear-gradient(to right, transparent, rgba(241,245,249,0.95))',
+                  pointerEvents: 'none', zIndex: 2,
+                }} />
+                <button
+                  onClick={() => cardRowRef.current?.scrollBy({ left: 220, behavior: 'smooth' })}
+                  style={{
+                    position: 'absolute', right: 14, bottom: 16,
+                    zIndex: 3, width: 32, height: 32, borderRadius: '50%',
+                    background: 'white', border: '1px solid #e2e8f0',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: '#7c3aed',
+                  }}
+                  title="Scroll right"
+                >
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <path d="M5 2l5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </>
             )}
 
-            {/* Card row */}
-            <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 900 }}>
-              <div style={{ position: 'relative', padding: '8px 8px 8px 8px' }}>
-
-                {/* Right-fade gradient + scroll arrow */}
-                {sortedSpots.length > 4 && (
-                  <>
-                    <div style={{
-                      position: 'absolute', right: 8, top: 8, bottom: 8, width: 72,
-                      background: 'linear-gradient(to right, transparent, rgba(241,245,249,0.95))',
-                      pointerEvents: 'none', zIndex: 2, borderRadius: '0 8px 8px 0',
-                    }} />
-                    <button
-                      onClick={() => cardRowRef.current?.scrollBy({ left: 220, behavior: 'smooth' })}
-                      style={{
-                        position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)',
-                        zIndex: 3, width: 32, height: 32, borderRadius: '50%',
-                        background: 'white', border: '1px solid #e2e8f0',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-                        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        color: '#7c3aed', fontSize: 14, fontWeight: 700,
-                      }}
-                      title="Scroll right"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                        <path d="M5 2l5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </button>
-                  </>
-                )}
-
-                {/* Scrollable cards */}
-                <div
-                  ref={cardRowRef}
-                  className="spectator-key-panel"
-                  style={{
-                    display: 'flex', flexDirection: 'row', gap: 6,
-                    overflowX: 'auto', scrollbarWidth: 'none',
-                    paddingRight: sortedSpots.length > 4 ? 48 : 0,
-                  }}
-                >
-                  {sortedSpots.map((spot, i) => {
-                    const isActive = selectedSpotId === spot.id || hoveredSpotId === spot.id;
-                    const letter = String.fromCharCode(65 + i);
-                    const distLabel = displayUnit === 'mi' ? `Mi ${spot.distanceMile}` : `${spot.distanceKm} km`;
-                    return (
-                      <div
-                        key={spot.id}
-                        data-spot-id={spot.id}
-                        onMouseEnter={(e) => {
-                          setHoveredSpotId(spot.id);
-                          const cardEl = e.currentTarget as HTMLDivElement;
-                          const wrapperEl = wrapperRef.current;
-                          if (wrapperEl) {
-                            const wr = wrapperEl.getBoundingClientRect();
-                            const cr = cardEl.getBoundingClientRect();
-                            setPopupLeft(cr.left - wr.left);
-                          }
-                        }}
-                        onMouseLeave={() => setHoveredSpotId(null)}
-                        onClick={(e) => {
-                          const cardEl = e.currentTarget as HTMLDivElement;
-                          const wrapperEl = wrapperRef.current;
-                          if (wrapperEl) {
-                            const wr = wrapperEl.getBoundingClientRect();
-                            const cr = cardEl.getBoundingClientRect();
-                            setPopupLeft(cr.left - wr.left);
-                          }
-                          setSelectedSpotId(prev => prev === spot.id ? null : spot.id);
-                        }}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 7,
-                          background: isActive ? 'rgba(245,240,255,0.98)' : 'rgba(255,255,255,0.93)',
-                          border: selectedSpotId === spot.id
-                            ? '1.5px solid #a855f7'
-                            : isActive ? '1px solid #c084fc' : '1px solid #e2e8f0',
-                          borderRadius: 8,
-                          padding: '6px 10px 6px 7px',
-                          boxShadow: isActive ? '0 2px 8px rgba(168,85,247,0.2)' : '0 1px 3px rgba(0,0,0,0.08)',
-                          width: 172, height: 44, flexShrink: 0,
-                          cursor: 'pointer',
-                          transition: 'border-color 0.15s, box-shadow 0.15s, background 0.15s',
-                          overflow: 'hidden',
-                        }}
-                      >
-                        <span style={{
-                          width: 20, height: 20, borderRadius: '50%',
-                          background: isActive ? '#9333ea' : '#a855f7',
-                          color: 'white', fontSize: 'var(--text-xs)', fontWeight: 700,
-                          fontFamily: 'system-ui,sans-serif',
-                          textAlign: 'center', lineHeight: '20px', flexShrink: 0,
-                        }}>{letter}</span>
-                        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                          <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {spot.name}
-                          </div>
-                          <div style={{ display: 'flex', gap: 5, marginTop: 1 }}>
-                            <span style={{ fontSize: 'var(--text-xs)', color: '#94a3b8', letterSpacing: '0.02em', flexShrink: 0 }}>{distLabel}</span>
-                            {spot.clockTime && (
-                              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#ea580c', flexShrink: 0 }}>{spot.clockTime}</span>
-                            )}
-                          </div>
+            {/* Scrollable cards — align-items: flex-end makes cards grow upward */}
+            <div
+              ref={cardRowRef}
+              className="spectator-key-panel"
+              style={{
+                display: 'flex', flexDirection: 'row', alignItems: 'flex-end', gap: 6,
+                overflowX: 'auto', scrollbarWidth: 'none',
+                paddingRight: sortedSpots.length > 4 ? 52 : 0,
+              }}
+            >
+              {sortedSpots.map((spot, i) => {
+                const isActive = hoveredSpotId === spot.id || selectedSpotId === spot.id;
+                const isSelected = selectedSpotId === spot.id;
+                const letter = String.fromCharCode(65 + i);
+                const distLabel = displayUnit === 'mi' ? `Mi ${spot.distanceMile}` : `${spot.distanceKm} km`;
+                return (
+                  <div
+                    key={spot.id}
+                    data-spot-id={spot.id}
+                    onMouseEnter={() => setHoveredSpotId(spot.id)}
+                    onMouseLeave={() => setHoveredSpotId(null)}
+                    onClick={() => setSelectedSpotId(prev => prev === spot.id ? null : spot.id)}
+                    style={{
+                      display: 'flex', flexDirection: 'column', gap: 5,
+                      background: isSelected ? 'rgba(245,240,255,0.98)' : isActive ? 'rgba(250,247,255,0.97)' : 'rgba(255,255,255,0.93)',
+                      border: isSelected ? '1.5px solid #a855f7' : isActive ? '1px solid #c084fc' : '1px solid #e2e8f0',
+                      borderRadius: 10,
+                      padding: isActive ? '8px 10px 8px 8px' : '6px 10px 6px 7px',
+                      boxShadow: isSelected ? '0 4px 16px rgba(168,85,247,0.28)' : isActive ? '0 2px 10px rgba(168,85,247,0.18)' : '0 1px 3px rgba(0,0,0,0.08)',
+                      width: 176, flexShrink: 0,
+                      cursor: 'pointer',
+                      transition: 'border-color 0.18s, box-shadow 0.18s, background 0.18s, padding 0.18s',
+                    }}
+                  >
+                    {/* Compact row — always visible */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                      <span style={{
+                        width: 20, height: 20, borderRadius: '50%',
+                        background: isActive ? '#9333ea' : '#a855f7',
+                        color: 'white', fontSize: 'var(--text-xs)', fontWeight: 700,
+                        fontFamily: 'system-ui,sans-serif',
+                        textAlign: 'center', lineHeight: '20px', flexShrink: 0,
+                      }}>{letter}</span>
+                      <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {spot.name}
+                        </div>
+                        <div style={{ display: 'flex', gap: 6, marginTop: 1 }}>
+                          <span style={{ fontSize: 'var(--text-xs)', color: '#94a3b8', letterSpacing: '0.02em' }}>{distLabel}</span>
+                          {spot.clockTime && (
+                            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#ea580c' }}>{spot.clockTime}</span>
+                          )}
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
+                    </div>
+
+                    {/* Expanded content — grows upward via align-items: flex-end on parent */}
+                    {isActive && (
+                      <>
+                        {spot.description && (
+                          <div style={{ fontSize: 'var(--text-xs)', color: '#64748b', lineHeight: 1.45, letterSpacing: '0.02em', paddingLeft: 27 }}>
+                            {spot.description}
+                          </div>
+                        )}
+                        {spot.nearestStations.length > 0 && (
+                          <div style={{ paddingLeft: 27 }}>
+                            <div style={{ fontSize: 'var(--text-xs)', color: '#ea580c', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 3 }}>
+                              Nearest stations
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                              {spot.nearestStations.map(s => (
+                                <span key={s} style={{
+                                  background: '#f1f5f9', border: '1px solid #e2e8f0',
+                                  borderRadius: 5, padding: '1px 6px',
+                                  fontSize: 'var(--text-xs)', color: '#334155', letterSpacing: '0.02em',
+                                }}>{s}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {spot.crowdNotes && (
+                          <div style={{
+                            paddingLeft: 27, borderTop: '1px solid #e2e8f0', paddingTop: 5,
+                            fontSize: 'var(--text-xs)', color: '#64748b', lineHeight: 1.45, letterSpacing: '0.02em',
+                          }}>
+                            {spot.crowdNotes}
+                          </div>
+                        )}
+                        <div style={{ paddingLeft: 27, fontSize: 'var(--text-xs)', color: '#c4b5fd' }}>
+                          {isSelected ? 'Click to close' : 'Click to pin open'}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-          </>
-        );
-      })()}
+          </div>
+        </div>
+      )}
 
       {/* Zoomed-in: small legend pill */}
       {zoom >= ZOOM_THRESHOLD && (
