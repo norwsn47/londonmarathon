@@ -43,20 +43,33 @@ const spectatorIcon = L.divIcon({
 });
 
 const ZOOM_THRESHOLD = 14;
-const LABEL_H = 22;
-const LABEL_GAP = 5;
-const PANEL_RIGHT = 10;
-const PANEL_W = 168;
 
-interface OverlayItem {
-  spot: SpotPrediction;
-  px: number;
-  py: number;
-  labelY: number;
+// Condensed popup for zoomed-out overview
+function condensedPopup(spot: SpotPrediction): string {
+  return `<div style="font-family:system-ui,sans-serif;min-width:120px;color:#0f172a">
+    <div style="font-size:11px;font-weight:700;margin-bottom:1px">${spot.name}</div>
+    <div style="font-size:9px;color:#64748b">Mile ${spot.distanceMile} · ${spot.distanceKm} km</div>
+    ${spot.clockTime ? `<div style="font-size:12px;font-weight:700;color:#ea580c;margin-top:2px">${spot.clockTime}</div>` : ''}
+  </div>`;
 }
 
-interface OverlayData {
-  items: OverlayItem[];
+// Full popup for zoomed-in detail
+function fullPopup(spot: SpotPrediction): string {
+  const timeHtml = spot.clockTime
+    ? `<div style="font-size:15px;font-weight:bold;color:#ea580c;margin:4px 0">🕐 ${spot.clockTime}</div>`
+    : '';
+  const stationsHtml = spot.nearestStations
+    .map(s => `<span style="display:inline-block;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5px;margin:2px 2px 0 0;font-size:10px;color:#334155">${s}</span>`)
+    .join('');
+  return `<div style="font-family:system-ui,sans-serif;min-width:200px;max-width:240px;color:#0f172a">
+    <div style="font-size:13px;font-weight:700;margin-bottom:2px">${spot.name}</div>
+    <div style="font-size:10px;color:#64748b;margin-bottom:4px">Mile ${spot.distanceMile} · ${spot.distanceKm} km</div>
+    ${timeHtml}
+    <div style="font-size:11px;color:#334155;margin-bottom:6px">${spot.description}</div>
+    <div style="font-size:10px;color:#ea580c;font-weight:600;margin-bottom:2px">Nearest stations</div>
+    <div style="margin-bottom:6px">${stationsHtml}</div>
+    <div style="font-size:10px;color:#64748b;border-top:1px solid #e2e8f0;padding-top:4px">${spot.crowdNotes}</div>
+  </div>`;
 }
 
 interface Props {
@@ -76,7 +89,6 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
   const spectatorLayersRef = useRef<Map<string, L.Marker>>(new Map());
 
   const [zoom, setZoom] = useState(13);
-  const [overlayData, setOverlayData] = useState<OverlayData | null>(null);
 
   // Initialise map once
   useEffect(() => {
@@ -94,7 +106,6 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
       maxZoom: 19,
     }).addTo(map);
 
-    // Move zoom control to bottom-right so the left panel is unobstructed
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
     mapRef.current = map;
@@ -111,40 +122,29 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
     };
   }, []);
 
-  // Toggle CSS class to hide permanent tooltips in panel mode
+  // Toggle CSS class to hide permanent tooltips when zoomed out
   useEffect(() => {
     containerRef.current?.classList.toggle('zoomed-out', zoom < ZOOM_THRESHOLD);
   }, [zoom]);
 
-  // Compute side-panel overlay after DOM is stable
+  // Open/close condensed popups based on zoom level
   useEffect(() => {
-    const map = mapRef.current;
-    const wrapper = wrapperRef.current;
-
-    if (!map || !wrapper || zoom >= ZOOM_THRESHOLD || spectatorPredictions.length === 0) {
-      setOverlayData(null);
-      return;
+    if (zoom < ZOOM_THRESHOLD) {
+      // Open all spectator popups with condensed content
+      for (const [id, layer] of spectatorLayersRef.current) {
+        const spot = spectatorPredictions.find(s => s.id === id);
+        if (!spot) continue;
+        layer.setPopupContent(condensedPopup(spot));
+        layer.openPopup();
+      }
+    } else {
+      // Close auto-opened popups and restore full content
+      for (const [id, layer] of spectatorLayersRef.current) {
+        layer.closePopup();
+        const spot = spectatorPredictions.find(s => s.id === id);
+        if (spot) layer.setPopupContent(fullPopup(spot));
+      }
     }
-
-    const containerH = wrapper.offsetHeight;
-
-    // Sort by race distance ascending (earliest point at top)
-    const sorted = [...spectatorPredictions]
-      .sort((a, b) => a.distanceKm - b.distanceKm)
-      .map(spot => {
-        const pt = map.latLngToContainerPoint([spot.lat, spot.lng]);
-        return { spot, px: Math.round(pt.x), py: Math.round(pt.y) };
-      });
-
-    const totalH = sorted.length * LABEL_H + (sorted.length - 1) * LABEL_GAP;
-    const panelTop = Math.max(8, (containerH - totalH) / 2);
-
-    const items: OverlayItem[] = sorted.map((item, i) => ({
-      ...item,
-      labelY: panelTop + i * (LABEL_H + LABEL_GAP),
-    }));
-
-    setOverlayData({ items });
   }, [zoom, spectatorPredictions]);
 
   // Draw GPX route
@@ -239,34 +239,13 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
     }
 
     for (const spot of spectatorPredictions) {
-      const existing = spectatorLayersRef.current.get(spot.id);
+      if (spectatorLayersRef.current.has(spot.id)) continue;
 
-      const timeHtml = spot.clockTime
-        ? `<div style="font-size:15px;font-weight:bold;color:#ea580c;margin:4px 0">🕐 ${spot.clockTime}</div>`
-        : '';
-      const stationsHtml = spot.nearestStations
-        .map(s => `<span style="display:inline-block;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5px;margin:2px 2px 0 0;font-size:10px;color:#334155">${s}</span>`)
-        .join('');
-      const popupHtml = `
-        <div style="font-family:system-ui,sans-serif;min-width:200px;max-width:240px;color:#0f172a">
-          <div style="font-size:13px;font-weight:700;margin-bottom:2px">${spot.name}</div>
-          <div style="font-size:10px;color:#64748b;margin-bottom:4px">Mile ${spot.distanceMile} · ${spot.distanceKm} km</div>
-          ${timeHtml}
-          <div style="font-size:11px;color:#334155;margin-bottom:6px">${spot.description}</div>
-          <div style="font-size:10px;color:#ea580c;font-weight:600;margin-bottom:2px">Nearest stations</div>
-          <div style="margin-bottom:6px">${stationsHtml}</div>
-          <div style="font-size:10px;color:#64748b;border-top:1px solid #e2e8f0;padding-top:4px">${spot.crowdNotes}</div>
-        </div>`;
-
-      if (existing) {
-        existing.setPopupContent(popupHtml);
-      } else {
-        const layer = L.marker([spot.lat, spot.lng], { icon: spectatorIcon })
-          .bindPopup(popupHtml, { maxWidth: 260 })
-          .bindTooltip(`${spot.name} · Mile ${spot.distanceMile}`, { permanent: true, direction: 'right', className: 'spectator-label', offset: [8, 0] })
-          .addTo(map);
-        spectatorLayersRef.current.set(spot.id, layer);
-      }
+      const layer = L.marker([spot.lat, spot.lng], { icon: spectatorIcon })
+        .bindPopup(fullPopup(spot), { maxWidth: 260, autoClose: false, closeOnClick: false })
+        .bindTooltip(`${spot.name} · Mile ${spot.distanceMile}`, { permanent: true, direction: 'right', className: 'spectator-label', offset: [8, 0] })
+        .addTo(map);
+      spectatorLayersRef.current.set(spot.id, layer);
     }
   }, [spectatorPredictions]);
 
@@ -274,7 +253,7 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
     <div ref={wrapperRef} className="relative w-full h-full">
       <div ref={containerRef} style={{ height: '100%' }} />
 
-      {/* Small legend pill — bottom-left of map */}
+      {/* Small legend pill */}
       <div style={{ position: 'absolute', bottom: 28, left: 8, zIndex: 900, pointerEvents: 'none' }}>
         <span style={{
           display: 'inline-flex', alignItems: 'center', gap: 5,
@@ -287,45 +266,6 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
           Viewing spots
         </span>
       </div>
-
-      {/* Zoomed-out: stacked side panel with leader lines */}
-      {overlayData && (
-        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 900, overflow: 'hidden' }}>
-          <div style={{
-            position: 'absolute',
-            left: PANEL_RIGHT,
-            top: overlayData.items[0]?.labelY ?? 8,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: LABEL_GAP,
-          }}>
-            {overlayData.items.map(item => (
-              <div key={item.spot.id} style={{
-                height: LABEL_H,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-                background: 'rgba(255,255,255,0.93)',
-                border: '1px solid #e2e8f0',
-                borderRadius: 5,
-                padding: '0 6px',
-                fontSize: 10,
-                fontWeight: 600,
-                color: '#334155',
-                whiteSpace: 'nowrap',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                width: PANEL_W - 2,
-              }}>
-                <span style={{ color: '#9333ea', fontWeight: 700, flexShrink: 0 }}>M{item.spot.distanceMile}</span>
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, minWidth: 0 }}>{item.spot.name}</span>
-                {item.spot.clockTime && (
-                  <span style={{ color: '#ea580c', flexShrink: 0 }}>{item.spot.clockTime}</span>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
