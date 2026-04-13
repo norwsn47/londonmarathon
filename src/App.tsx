@@ -10,6 +10,7 @@ import {
   formatDuration,
 } from './lib/paceUtils';
 import { parseGpx, type GpxPoint } from './lib/gpxParser';
+import { predictSpotTimes, type SpotPrediction } from './lib/spectatorSpots';
 import Header from './components/Header';
 import CourseMap from './components/CourseMap';
 import PositionSlider from './components/PositionSlider';
@@ -61,6 +62,18 @@ export default function App() {
   const positionKm = getPositionAtTime(displaySegments, elapsedSec);
 
   const allMarkers = useMemo(() => [...OFFICIAL_MARKERS, ...userMarkers], [userMarkers]);
+
+  // Default gun start time: 10:00 AM on an arbitrary day (only H:MM matters for display)
+  const runnerStartTime = useMemo(() => {
+    const d = new Date();
+    d.setHours(10, 0, 0, 0);
+    return d;
+  }, []);
+
+  const spectatorPredictions = useMemo<SpotPrediction[]>(
+    () => predictSpotTimes(runnerStartTime, displaySegments),
+    [runnerStartTime, displaySegments],
+  );
 
   // Load London Marathon GPX from public folder
   useEffect(() => {
@@ -136,6 +149,7 @@ export default function App() {
             positionKm={positionKm}
             onMapClick={handleMapClick}
             canAddMarkers={addingMarker}
+            spectatorPredictions={spectatorPredictions}
           />
 
           {/* Add marker button */}
