@@ -120,7 +120,7 @@ export default function App() {
 
         {/* Target time + gun start */}
         <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-4 border border-border shadow-xl">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">
+          <p className="t-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">
             Target Finish Time
           </p>
           <div className="flex items-center gap-2 flex-wrap">
@@ -133,7 +133,7 @@ export default function App() {
               <button
                 key={label}
                 onClick={() => handleTargetChange(sec)}
-                className={`text-sm font-bold px-3 py-1.5 rounded-xl border transition-all ${
+                className={`t-base font-medium px-3 py-1.5 rounded-xl border transition-all ${
                   targetSec === sec
                     ? 'bg-orange-500/10 border-orange-500/50 text-orange-600'
                     : 'bg-surface-2 border-border text-slate-500 hover:border-slate-400 hover:text-slate-900'
@@ -143,12 +143,12 @@ export default function App() {
               </button>
             ))}
             <div className="flex items-center gap-2 mt-2 w-full">
-              <span className="text-xs text-slate-500">Strategy:</span>
+              <span className="t-xs text-slate-500">Strategy:</span>
               {(['even', 'negative'] as Strategy[]).map(s => (
                 <button
                   key={s}
                   onClick={() => handleStrategySelect(s)}
-                  className={`text-xs font-semibold px-2.5 py-1 rounded-lg border transition-all ${
+                  className={`t-sm font-semibold px-2.5 py-1 rounded-lg border transition-all ${
                     strategy === s
                       ? 'bg-orange-500/10 border-orange-500/50 text-orange-600'
                       : 'border-border text-slate-500 hover:text-slate-900'
@@ -162,12 +162,12 @@ export default function App() {
 
           {/* Distance unit toggle */}
           <div className="flex items-center gap-2 mt-2">
-            <span className="text-xs text-slate-500">Distance:</span>
+            <span className="t-xs text-slate-500">Distance:</span>
             {(['km', 'mi'] as const).map(u => (
               <button
                 key={u}
                 onClick={() => setDisplayUnit(u)}
-                className={`text-xs font-semibold px-2.5 py-1 rounded-lg border transition-all ${
+                className={`t-sm font-semibold px-2.5 py-1 rounded-lg border transition-all ${
                   displayUnit === u
                     ? 'bg-orange-500/10 border-orange-500/50 text-orange-600'
                     : 'border-border text-slate-500 hover:text-slate-900'
@@ -180,14 +180,14 @@ export default function App() {
 
           {/* Gun start time */}
           <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border">
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest whitespace-nowrap">
+            <label className="t-xs font-semibold text-slate-500 uppercase tracking-widest whitespace-nowrap">
               Gun start
             </label>
             <input
               type="time"
               value={startTimeStr}
               onChange={e => setStartTimeStr(e.target.value)}
-              className="ml-auto text-sm font-mono font-semibold text-slate-900 bg-surface-2 border border-border rounded-lg px-2 py-1 outline-none focus:border-orange-500/60 transition-colors"
+              className="ml-auto t-sm font-mono font-semibold text-slate-900 bg-surface-2 border border-border rounded-lg px-2 py-1 outline-none focus:border-orange-500/60 transition-colors"
             />
           </div>
         </div>
@@ -204,17 +204,17 @@ export default function App() {
 
         {/* Pace summary */}
         <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-4 border border-border shadow-xl">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">
+          <p className="t-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">
             Pace Summary
           </p>
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-surface-2 rounded-xl p-3 border border-border">
-              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Target</p>
-              <p className="text-sm font-bold font-mono text-slate-900">{formatDuration(targetSec)}</p>
+              <p className="t-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Target</p>
+              <p className="t-sm font-bold font-mono text-slate-900">{formatDuration(targetSec)}</p>
             </div>
             <div className="bg-surface-2 rounded-xl p-3 border border-border">
-              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Projected</p>
-              <p className={`text-sm font-bold font-mono ${
+              <p className="t-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Projected</p>
+              <p className={`t-sm font-bold font-mono ${
                 Math.abs(projectedSec - targetSec) < 15 ? 'text-slate-900'
                 : projectedSec < targetSec ? 'text-green-600'
                 : 'text-red-500'

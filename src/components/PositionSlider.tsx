@@ -20,14 +20,14 @@ export default function PositionSlider({ segments, elapsedSec, onChange, display
   return (
     <div className="bg-surface rounded-2xl px-4 py-3 border border-border">
       <div className="flex items-center justify-between mb-2">
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">
+        <p className="t-xs font-semibold text-slate-500 uppercase tracking-widest">
           Where am I?
         </p>
         <div className="flex items-center gap-3">
-          <span className="text-[11px] font-mono text-slate-500">
+          <span className="t-xs font-mono text-slate-500">
             {posDisplay}
           </span>
-          <span className="text-[11px] font-mono text-orange-600 font-semibold">
+          <span className="t-xs font-mono text-orange-600 font-semibold">
             {formatDuration(elapsedSec)}
           </span>
         </div>
@@ -48,8 +48,8 @@ export default function PositionSlider({ segments, elapsedSec, onChange, display
       />
 
       <div className="flex justify-between mt-1">
-        <span className="text-[10px] text-slate-400">Start</span>
-        <span className="text-[10px] text-slate-400">Finish</span>
+        <span className="t-xs text-slate-400">Start</span>
+        <span className="t-xs text-slate-400">Finish</span>
       </div>
     </div>
   );

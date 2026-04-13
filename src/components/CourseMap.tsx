@@ -44,7 +44,7 @@ const spectatorIcon = L.divIcon({
 function createLetterIcon(letter: string): L.DivIcon {
   return L.divIcon({
     className: '',
-    html: `<div style="width:20px;height:20px;background:#a855f7;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.4);color:white;font-size:9px;font-weight:700;font-family:system-ui,sans-serif;text-align:center;line-height:16px">${letter}</div>`,
+    html: `<div style="width:20px;height:20px;background:#a855f7;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.4);color:white;font-size:var(--text-xs);font-weight:700;font-family:system-ui,sans-serif;text-align:center;line-height:16px">${letter}</div>`,
     iconSize: [20, 20],
     iconAnchor: [10, 10],
     popupAnchor: [0, -12],
@@ -54,7 +54,7 @@ function createLetterIcon(letter: string): L.DivIcon {
 function createLetterIconGlowing(letter: string): L.DivIcon {
   return L.divIcon({
     className: '',
-    html: `<div style="width:28px;height:28px;background:#a855f7;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 5px rgba(168,85,247,0.4),0 0 18px 6px rgba(168,85,247,0.55);color:white;font-size:12px;font-weight:700;font-family:system-ui,sans-serif;text-align:center;line-height:24px">${letter}</div>`,
+    html: `<div style="width:28px;height:28px;background:#a855f7;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 5px rgba(168,85,247,0.4),0 0 18px 6px rgba(168,85,247,0.55);color:white;font-size:var(--text-sm);font-weight:700;font-family:system-ui,sans-serif;text-align:center;line-height:24px">${letter}</div>`,
     iconSize: [28, 28],
     iconAnchor: [14, 14],
     popupAnchor: [0, -16],
@@ -66,19 +66,19 @@ function fullPopup(spot: SpotPrediction, unit: 'km' | 'mi'): string {
     ? `Mile ${spot.distanceMile}`
     : `${spot.distanceKm} km`;
   const timeHtml = spot.clockTime
-    ? `<div style="font-size:15px;font-weight:bold;color:#ea580c;margin:4px 0">🕐 ${spot.clockTime}</div>`
+    ? `<div style="font-size:var(--text-md);font-weight:600;color:#ea580c;line-height:1.4;margin:5px 0">🕐 ${spot.clockTime}</div>`
     : '';
   const stationsHtml = spot.nearestStations
-    .map(s => `<span style="display:inline-block;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5px;margin:2px 2px 0 0;font-size:10px;color:#334155">${s}</span>`)
+    .map(s => `<span style="display:inline-block;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5px;margin:2px 2px 0 0;font-size:var(--text-xs);letter-spacing:0.02em;color:#334155">${s}</span>`)
     .join('');
-  return `<div style="font-family:system-ui,sans-serif;min-width:200px;max-width:240px;color:#0f172a">
-    <div style="font-size:13px;font-weight:700;margin-bottom:2px">${spot.name}</div>
-    <div style="font-size:10px;color:#64748b;margin-bottom:4px">${distLabel}</div>
+  return `<div style="font-family:system-ui,sans-serif;min-width:220px;max-width:260px;color:#0f172a">
+    <div style="font-size:var(--text-lg);font-weight:700;line-height:1.3;margin-bottom:3px">${spot.name}</div>
+    <div style="font-size:var(--text-sm);color:#64748b;letter-spacing:0.02em;margin-bottom:5px">${distLabel}</div>
     ${timeHtml}
-    <div style="font-size:11px;color:#334155;margin-bottom:6px">${spot.description}</div>
-    <div style="font-size:10px;color:#ea580c;font-weight:600;margin-bottom:2px">Nearest stations</div>
-    <div style="margin-bottom:6px">${stationsHtml}</div>
-    <div style="font-size:10px;color:#64748b;border-top:1px solid #e2e8f0;padding-top:4px">${spot.crowdNotes}</div>
+    <div style="font-size:var(--text-base);color:#334155;line-height:1.5;margin-bottom:8px">${spot.description}</div>
+    <div style="font-size:var(--text-sm);color:#ea580c;font-weight:600;letter-spacing:0.02em;margin-bottom:3px">Nearest stations</div>
+    <div style="margin-bottom:8px">${stationsHtml}</div>
+    <div style="font-size:var(--text-sm);color:#64748b;letter-spacing:0.02em;border-top:1px solid #e2e8f0;padding-top:5px">${spot.crowdNotes}</div>
   </div>`;
 }
 
@@ -320,27 +320,27 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
                 <span style={{
                   width: 19, height: 19, borderRadius: '50%',
                   background: '#a855f7', color: 'white',
-                  fontSize: 11, fontWeight: 700,
+                  fontSize: 'var(--text-xs)', fontWeight: 700,
                   fontFamily: 'system-ui,sans-serif',
                   textAlign: 'center', lineHeight: '19px',
                   flexShrink: 0,
                 }}>{String.fromCharCode(65 + i)}</span>
                 {/* Name */}
-                <span style={{ fontSize: 12, fontWeight: 600, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '0.02em' }}>
                   {spot.name}
                 </span>
                 {/* Distance marker */}
-                <span style={{ fontSize: 11, color: '#94a3b8', flexShrink: 0 }}>
+                <span style={{ fontSize: 'var(--text-xs)', color: '#94a3b8', flexShrink: 0, letterSpacing: '0.02em' }}>
                   {displayUnit === 'mi' ? `Mi ${spot.distanceMile}` : `${spot.distanceKm} km`}
                 </span>
                 {/* Predicted time */}
                 {spot.clockTime && (
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#ea580c', flexShrink: 0 }}>{spot.clockTime}</span>
+                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#ea580c', flexShrink: 0 }}>{spot.clockTime}</span>
                 )}
               </div>
               {/* Description */}
               {spot.description && (
-                <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.35, whiteSpace: 'normal', paddingLeft: 26 }}>
+                <div style={{ fontSize: 'var(--text-xs)', color: '#64748b', lineHeight: 1.4, letterSpacing: '0.02em', whiteSpace: 'normal', paddingLeft: 26 }}>
                   {spot.description.length > 80 ? spot.description.slice(0, 77) + '…' : spot.description}
                 </div>
               )}
@@ -356,7 +356,7 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
             display: 'inline-flex', alignItems: 'center', gap: 5,
             background: 'rgba(255,255,255,0.92)', border: '1px solid #e2e8f0',
             borderRadius: 6, padding: '3px 8px',
-            fontSize: 10, fontWeight: 600, color: '#7c3aed',
+            fontSize: 'var(--text-xs)', fontWeight: 600, color: '#7c3aed', letterSpacing: '0.02em',
             boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
           }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#a855f7', flexShrink: 0 }} />
