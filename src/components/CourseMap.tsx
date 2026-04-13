@@ -13,14 +13,13 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-function createOfficialIcon(title: string) {
-  return L.divIcon({
-    className: 'official-label-icon',
-    html: `<div class="official-label">${title}</div>`,
-    iconAnchor: [0, 8],
-    popupAnchor: [0, -4],
-  });
-}
+const officialDot = L.divIcon({
+  className: '',
+  html: '<div style="width:10px;height:10px;background:#f97316;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.3)"></div>',
+  iconSize: [10, 10],
+  iconAnchor: [5, 5],
+  popupAnchor: [0, -8],
+});
 
 const userIcon = L.divIcon({
   className: '',
@@ -131,17 +130,20 @@ export default function CourseMap({ gpxPoints, markers, positionKm, onMapClick, 
     // Add new markers
     for (const marker of markers) {
       if (markerLayersRef.current.has(marker.id)) continue;
-      const icon = marker.type === 'official' ? createOfficialIcon(marker.title) : userIcon;
-      const userPopupHtml = `
-        <div style="font-family:system-ui,sans-serif;min-width:180px;max-width:240px;color:#0f172a">
-          <div style="font-size:13px;font-weight:700;margin-bottom:2px">${marker.title}</div>
-          <div style="font-size:10px;color:#64748b;margin-bottom:6px">Your spectator spot</div>
-          ${marker.description
-            ? `<div style="font-size:11px;color:#334155;border-top:1px solid #e2e8f0;padding-top:4px">${marker.description}</div>`
-            : ''}
-        </div>`;
+      const icon = marker.type === 'official' ? officialDot : userIcon;
+      const popupHtml = marker.type === 'official'
+        ? `<div style="font-family:system-ui,sans-serif;min-width:140px;color:#0f172a">
+            <div style="font-size:13px;font-weight:700">${marker.title}</div>
+           </div>`
+        : `<div style="font-family:system-ui,sans-serif;min-width:180px;max-width:240px;color:#0f172a">
+            <div style="font-size:13px;font-weight:700;margin-bottom:2px">${marker.title}</div>
+            <div style="font-size:10px;color:#64748b;margin-bottom:6px">Your spectator spot</div>
+            ${marker.description
+              ? `<div style="font-size:11px;color:#334155;border-top:1px solid #e2e8f0;padding-top:4px">${marker.description}</div>`
+              : ''}
+           </div>`;
       const layer = L.marker([marker.lat, marker.lng], { icon })
-        .bindPopup(userPopupHtml, { maxWidth: 260 })
+        .bindPopup(popupHtml, { maxWidth: 260 })
         .bindTooltip(marker.title, { permanent: true, direction: 'right', className: 'spectator-label', offset: [8, 0] })
         .addTo(map);
       markerLayersRef.current.set(marker.id, layer);
