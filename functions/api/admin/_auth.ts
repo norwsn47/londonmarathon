@@ -1,4 +1,4 @@
-export const ADMIN_PASSWORD = 'london 26';
+export const ADMIN_PASSWORD = 'london26';
 
 export const CORS = {
   'Access-Control-Allow-Origin': '*',
