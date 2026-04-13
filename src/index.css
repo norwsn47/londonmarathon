@@ -19,6 +19,11 @@
   color: #475569 !important;
 }
 
+/* Hide permanent map labels when in zoomed-out side-panel mode */
+.leaflet-container.zoomed-out .leaflet-tooltip {
+  display: none !important;
+}
+
 /* Spectator spot / user marker name labels (Leaflet tooltip) */
 .spectator-label {
   background: white !important;

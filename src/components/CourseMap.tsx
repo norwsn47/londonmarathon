@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { GpxPoint } from '../lib/gpxParser';
@@ -19,14 +19,6 @@ const officialDot = L.divIcon({
   iconSize: [10, 10],
   iconAnchor: [5, 5],
   popupAnchor: [0, -8],
-});
-
-const userIcon = L.divIcon({
-  className: '',
-  html: '<div style="width:12px;height:12px;background:#a855f7;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.5)"></div>',
-  iconSize: [12, 12],
-  iconAnchor: [6, 6],
-  popupAnchor: [0, -10],
 });
 
 // Binoculars icon for spectator viewing spots
@@ -58,22 +50,31 @@ const spectatorIcon = L.divIcon({
   popupAnchor: [0, -20],
 });
 
+// Below this zoom level, switch to side-panel label mode
+const ZOOM_THRESHOLD = 14;
+const LABEL_H = 22;
+const LABEL_GAP = 5;
+const PANEL_RIGHT = 10;
+const PANEL_W = 168;
+const MAP_H = 420;
+
 interface Props {
   gpxPoints: GpxPoint[];
   markers: CourseMarker[];
-  positionKm?: number | null; // current runner position on course
-  onMapClick?: (lat: number, lng: number) => void;
-  canAddMarkers: boolean;
+  positionKm?: number | null;
   spectatorPredictions?: SpotPrediction[];
 }
 
-export default function CourseMap({ gpxPoints, markers, positionKm, onMapClick, canAddMarkers, spectatorPredictions = [] }: Props) {
+export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPredictions = [] }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const routeLayerRef = useRef<L.Polyline | null>(null);
   const markerLayersRef = useRef<Map<string, L.Marker>>(new Map());
   const positionMarkerRef = useRef<L.CircleMarker | null>(null);
   const spectatorLayersRef = useRef<Map<string, L.Marker>>(new Map());
+
+  const [zoom, setZoom] = useState(13);
 
   // Initialise map once
   useEffect(() => {
@@ -93,23 +94,21 @@ export default function CourseMap({ gpxPoints, markers, positionKm, onMapClick, 
 
     mapRef.current = map;
 
+    // Track zoom/move so overlay recalculates
+    const onViewChange = () => setZoom(map.getZoom());
+    map.on('zoomend moveend', onViewChange);
+
     return () => {
+      map.off('zoomend moveend', onViewChange);
       map.remove();
       mapRef.current = null;
     };
   }, []);
 
-  // Click handler for adding markers
+  // Toggle CSS class to hide permanent tooltips in zoomed-out panel mode
   useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !onMapClick || !canAddMarkers) return;
-
-    function handleClick(e: L.LeafletMouseEvent) {
-      onMapClick!(e.latlng.lat, e.latlng.lng);
-    }
-    map.on('click', handleClick);
-    return () => { map.off('click', handleClick); };
-  }, [onMapClick, canAddMarkers]);
+    containerRef.current?.classList.toggle('zoomed-out', zoom < ZOOM_THRESHOLD);
+  }, [zoom]);
 
   // Draw GPX route
   useEffect(() => {
@@ -139,7 +138,6 @@ export default function CourseMap({ gpxPoints, markers, positionKm, onMapClick, 
     const map = mapRef.current;
     if (!map) return;
 
-    // Remove old markers no longer in list
     for (const [id, layer] of markerLayersRef.current) {
       if (!markers.find(m => m.id === id)) {
         layer.remove();
@@ -147,22 +145,13 @@ export default function CourseMap({ gpxPoints, markers, positionKm, onMapClick, 
       }
     }
 
-    // Add new markers
     for (const marker of markers) {
       if (markerLayersRef.current.has(marker.id)) continue;
-      const icon = marker.type === 'official' ? officialDot : userIcon;
-      const popupHtml = marker.type === 'official'
-        ? `<div style="font-family:system-ui,sans-serif;min-width:140px;color:#0f172a">
-            <div style="font-size:13px;font-weight:700">${marker.title}</div>
-           </div>`
-        : `<div style="font-family:system-ui,sans-serif;min-width:180px;max-width:240px;color:#0f172a">
-            <div style="font-size:13px;font-weight:700;margin-bottom:2px">${marker.title}</div>
-            <div style="font-size:10px;color:#64748b;margin-bottom:6px">Your spectator spot</div>
-            ${marker.description
-              ? `<div style="font-size:11px;color:#334155;border-top:1px solid #e2e8f0;padding-top:4px">${marker.description}</div>`
-              : ''}
-           </div>`;
-      const layer = L.marker([marker.lat, marker.lng], { icon })
+      const popupHtml = `<div style="font-family:system-ui,sans-serif;min-width:140px;color:#0f172a">
+        <div style="font-size:13px;font-weight:700">${marker.title}</div>
+        ${marker.description ? `<div style="font-size:11px;color:#64748b;margin-top:2px">${marker.description}</div>` : ''}
+      </div>`;
+      const layer = L.marker([marker.lat, marker.lng], { icon: officialDot })
         .bindPopup(popupHtml, { maxWidth: 260 })
         .bindTooltip(marker.title, { permanent: true, direction: 'right', className: 'spectator-label', offset: [8, 0] })
         .addTo(map);
@@ -182,7 +171,6 @@ export default function CourseMap({ gpxPoints, markers, positionKm, onMapClick, 
 
     if (positionKm == null || !gpxPoints.length) return;
 
-    // Find closest point
     let closest = gpxPoints[0];
     let minDiff = Math.abs(gpxPoints[0].distKm - positionKm);
     for (const pt of gpxPoints) {
@@ -206,7 +194,6 @@ export default function CourseMap({ gpxPoints, markers, positionKm, onMapClick, 
     const map = mapRef.current;
     if (!map) return;
 
-    // Remove spots no longer in the list
     for (const [id, layer] of spectatorLayersRef.current) {
       if (!spectatorPredictions.find(s => s.id === id)) {
         layer.remove();
@@ -217,7 +204,6 @@ export default function CourseMap({ gpxPoints, markers, positionKm, onMapClick, 
     for (const spot of spectatorPredictions) {
       const existing = spectatorLayersRef.current.get(spot.id);
 
-      // Build popup HTML
       const timeHtml = spot.clockTime
         ? `<div style="font-size:15px;font-weight:bold;color:#ea580c;margin:4px 0">🕐 ${spot.clockTime}</div>`
         : '';
@@ -238,7 +224,6 @@ export default function CourseMap({ gpxPoints, markers, positionKm, onMapClick, 
         </div>`;
 
       if (existing) {
-        // Update popup content in place (e.g. when clock time changes)
         existing.setPopupContent(popupHtml);
       } else {
         const layer = L.marker([spot.lat, spot.lng], { icon: spectatorIcon })
@@ -250,6 +235,34 @@ export default function CourseMap({ gpxPoints, markers, positionKm, onMapClick, 
     }
   }, [spectatorPredictions]);
 
+  // --- Compute side-panel overlay items when zoomed out ---
+  const isZoomedOut = zoom < ZOOM_THRESHOLD;
+
+  type OverlayItem = { spot: SpotPrediction; px: number; py: number; labelY: number };
+  let overlayItems: OverlayItem[] = [];
+  let panelLeft = 0;
+
+  if (isZoomedOut && mapRef.current && spectatorPredictions.length > 0) {
+    const map = mapRef.current;
+    const containerW = wrapperRef.current?.offsetWidth ?? 600;
+    panelLeft = containerW - PANEL_W - PANEL_RIGHT;
+
+    const withPixels = spectatorPredictions
+      .map(spot => {
+        const pt = map.latLngToContainerPoint([spot.lat, spot.lng]);
+        return { spot, px: Math.round(pt.x), py: Math.round(pt.y) };
+      })
+      .sort((a, b) => a.py - b.py); // top-to-bottom on map → no label crossing
+
+    const totalH = withPixels.length * LABEL_H + (withPixels.length - 1) * LABEL_GAP;
+    const panelTop = Math.max(8, (MAP_H - totalH) / 2);
+
+    overlayItems = withPixels.map((item, i) => ({
+      ...item,
+      labelY: panelTop + i * (LABEL_H + LABEL_GAP),
+    }));
+  }
+
   return (
     <div className="bg-surface rounded-2xl border border-border overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
@@ -260,11 +273,68 @@ export default function CourseMap({ gpxPoints, markers, positionKm, onMapClick, 
             Viewing spots
           </span>
         </div>
-        {canAddMarkers && (
-          <p className="text-[11px] text-orange-600 font-semibold">Click map to add marker</p>
+      </div>
+
+      <div ref={wrapperRef} className="relative" style={{ height: MAP_H }}>
+        <div ref={containerRef} style={{ height: '100%' }} />
+
+        {/* Zoomed-out: side panel with leader lines */}
+        {isZoomedOut && overlayItems.length > 0 && (
+          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 900, overflow: 'hidden' }}>
+            {/* SVG leader lines */}
+            <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
+              {overlayItems.map(item => {
+                const labelMidY = item.labelY + LABEL_H / 2;
+                return (
+                  <g key={item.spot.id}>
+                    <circle cx={item.px} cy={item.py} r="3.5" fill="#a855f7" opacity="0.85" />
+                    <line
+                      x1={item.px} y1={item.py}
+                      x2={panelLeft} y2={labelMidY}
+                      stroke="#a855f7" strokeWidth="1" strokeOpacity="0.4" strokeDasharray="3 2"
+                    />
+                  </g>
+                );
+              })}
+            </svg>
+
+            {/* Stacked label panel */}
+            <div style={{
+              position: 'absolute',
+              right: PANEL_RIGHT,
+              top: overlayItems[0].labelY,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: LABEL_GAP,
+            }}>
+              {overlayItems.map(item => (
+                <div key={item.spot.id} style={{
+                  height: LABEL_H,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  background: 'rgba(255,255,255,0.93)',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: 5,
+                  padding: '0 6px',
+                  fontSize: 10,
+                  fontWeight: 600,
+                  color: '#334155',
+                  whiteSpace: 'nowrap',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                  width: PANEL_W - 2,
+                }}>
+                  <span style={{ color: '#9333ea', fontWeight: 700, flexShrink: 0 }}>M{item.spot.distanceMile}</span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, minWidth: 0 }}>{item.spot.name}</span>
+                  {item.spot.clockTime && (
+                    <span style={{ color: '#ea580c', flexShrink: 0 }}>{item.spot.clockTime}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </div>
-      <div ref={containerRef} style={{ height: 420 }} />
     </div>
   );
 }
