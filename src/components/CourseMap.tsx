@@ -315,16 +315,19 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
 
       {/* Zoomed-out: numbered key panel along the left edge */}
       {zoom < ZOOM_THRESHOLD && sortedSpots.length > 0 && (
-        <div style={{
+        <div className="spectator-key-panel" style={{
           position: 'absolute',
           left: 8,
-          top: '50%',
-          transform: 'translateY(-50%)',
+          top: 8,
+          bottom: 8,
           zIndex: 900,
           pointerEvents: 'none',
           display: 'flex',
           flexDirection: 'column',
           gap: 4,
+          overflowY: 'auto',
+          overflowX: 'visible',
+          scrollbarWidth: 'none',
         }}>
           {sortedSpots.map((spot, i) => (
             <div

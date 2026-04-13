@@ -71,6 +71,11 @@
   display: none !important;
 }
 
+/* Hide scrollbar on the zoomed-out spectator key panel */
+.spectator-key-panel::-webkit-scrollbar {
+  display: none;
+}
+
 /* Official course marker icon container */
 .official-marker-icon {
   background: transparent !important;
