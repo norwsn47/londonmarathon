@@ -42,6 +42,7 @@ export default function App() {
   // Map / GPX state
   const [gpxPoints, setGpxPoints] = useState<GpxPoint[]>([]);
   const [elapsedSec, setElapsedSec] = useState(0);
+  const [displayUnit, setDisplayUnit] = useState<'km' | 'mi'>('km');
 
   const autoBalanceIdxs = useMemo(() => getAutoBalanceIdxs(segments), [segments]);
 
@@ -106,6 +107,7 @@ export default function App() {
           markers={OFFICIAL_MARKERS}
           positionKm={positionKm}
           spectatorPredictions={spectatorPredictions}
+          displayUnit={displayUnit}
         />
       </div>
 
@@ -158,6 +160,24 @@ export default function App() {
             </div>
           </div>
 
+          {/* Distance unit toggle */}
+          <div className="flex items-center gap-2 mt-2">
+            <span className="text-xs text-slate-500">Distance:</span>
+            {(['km', 'mi'] as const).map(u => (
+              <button
+                key={u}
+                onClick={() => setDisplayUnit(u)}
+                className={`text-xs font-semibold px-2.5 py-1 rounded-lg border transition-all ${
+                  displayUnit === u
+                    ? 'bg-orange-500/10 border-orange-500/50 text-orange-600'
+                    : 'border-border text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                {u}
+              </button>
+            ))}
+          </div>
+
           {/* Gun start time */}
           <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border">
             <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest whitespace-nowrap">
@@ -178,6 +198,7 @@ export default function App() {
             segments={displaySegments}
             elapsedSec={elapsedSec}
             onChange={setElapsedSec}
+            displayUnit={displayUnit}
           />
         </div>
 

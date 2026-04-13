@@ -6,12 +6,16 @@ interface Props {
   segments: Segment[];
   elapsedSec: number;
   onChange: (sec: number) => void;
+  displayUnit?: 'km' | 'mi';
 }
 
-export default function PositionSlider({ segments, elapsedSec, onChange }: Props) {
+export default function PositionSlider({ segments, elapsedSec, onChange, displayUnit = 'km' }: Props) {
   const totalSec = totalTimeSeconds(segments);
   const posKm = getPositionAtTime(segments, elapsedSec);
   const pct = Math.min(100, (posKm / MARATHON_KM) * 100);
+  const posDisplay = displayUnit === 'mi'
+    ? `${(posKm * 0.621371).toFixed(1)} mi`
+    : `${posKm.toFixed(1)} km`;
 
   return (
     <div className="bg-surface rounded-2xl px-4 py-3 border border-border">
@@ -21,7 +25,7 @@ export default function PositionSlider({ segments, elapsedSec, onChange }: Props
         </p>
         <div className="flex items-center gap-3">
           <span className="text-[11px] font-mono text-slate-500">
-            {posKm.toFixed(1)} km
+            {posDisplay}
           </span>
           <span className="text-[11px] font-mono text-orange-600 font-semibold">
             {formatDuration(elapsedSec)}

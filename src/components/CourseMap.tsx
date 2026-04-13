@@ -61,7 +61,10 @@ function createLetterIconGlowing(letter: string): L.DivIcon {
   });
 }
 
-function fullPopup(spot: SpotPrediction): string {
+function fullPopup(spot: SpotPrediction, unit: 'km' | 'mi'): string {
+  const distLabel = unit === 'mi'
+    ? `Mile ${spot.distanceMile}`
+    : `${spot.distanceKm} km`;
   const timeHtml = spot.clockTime
     ? `<div style="font-size:15px;font-weight:bold;color:#ea580c;margin:4px 0">🕐 ${spot.clockTime}</div>`
     : '';
@@ -70,7 +73,7 @@ function fullPopup(spot: SpotPrediction): string {
     .join('');
   return `<div style="font-family:system-ui,sans-serif;min-width:200px;max-width:240px;color:#0f172a">
     <div style="font-size:13px;font-weight:700;margin-bottom:2px">${spot.name}</div>
-    <div style="font-size:10px;color:#64748b;margin-bottom:4px">Mile ${spot.distanceMile} · ${spot.distanceKm} km</div>
+    <div style="font-size:10px;color:#64748b;margin-bottom:4px">${distLabel}</div>
     ${timeHtml}
     <div style="font-size:11px;color:#334155;margin-bottom:6px">${spot.description}</div>
     <div style="font-size:10px;color:#ea580c;font-weight:600;margin-bottom:2px">Nearest stations</div>
@@ -86,9 +89,10 @@ interface Props {
   markers: CourseMarker[];
   positionKm?: number | null;
   spectatorPredictions?: SpotPrediction[];
+  displayUnit?: 'km' | 'mi';
 }
 
-export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPredictions = [] }: Props) {
+export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPredictions = [], displayUnit = 'km' }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -261,16 +265,18 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
       const existing = spectatorLayersRef.current.get(spot.id);
 
       if (existing) {
-        existing.setPopupContent(fullPopup(spot));
+        existing.setPopupContent(fullPopup(spot, displayUnit));
+        existing.setTooltipContent(`${letter} · ${spot.name} · ${displayUnit === 'mi' ? `Mile ${spot.distanceMile}` : `${spot.distanceKm} km`}`);
       } else {
+        const distLabel = displayUnit === 'mi' ? `Mile ${spot.distanceMile}` : `${spot.distanceKm} km`;
         const layer = L.marker([spot.lat, spot.lng], { icon: spectatorIcon })
-          .bindPopup(fullPopup(spot), { maxWidth: 260 })
-          .bindTooltip(`${letter} · ${spot.name} · Mile ${spot.distanceMile}`, { permanent: true, direction: 'right', className: 'spectator-label', offset: [8, 0] })
+          .bindPopup(fullPopup(spot, displayUnit), { maxWidth: 260 })
+          .bindTooltip(`${letter} · ${spot.name} · ${distLabel}`, { permanent: true, direction: 'right', className: 'spectator-label', offset: [8, 0] })
           .addTo(map);
         spectatorLayersRef.current.set(spot.id, layer);
       }
     }
-  }, [spectatorPredictions]);
+  }, [spectatorPredictions, displayUnit]);
 
   return (
     <div ref={wrapperRef} className="relative w-full h-full">
@@ -323,8 +329,10 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
                 <span style={{ fontSize: 12, fontWeight: 600, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {spot.name}
                 </span>
-                {/* Mile marker */}
-                <span style={{ fontSize: 11, color: '#94a3b8', flexShrink: 0 }}>Mi {spot.distanceMile}</span>
+                {/* Distance marker */}
+                <span style={{ fontSize: 11, color: '#94a3b8', flexShrink: 0 }}>
+                  {displayUnit === 'mi' ? `Mi ${spot.distanceMile}` : `${spot.distanceKm} km`}
+                </span>
                 {/* Predicted time */}
                 {spot.clockTime && (
                   <span style={{ fontSize: 12, fontWeight: 700, color: '#ea580c', flexShrink: 0 }}>{spot.clockTime}</span>
