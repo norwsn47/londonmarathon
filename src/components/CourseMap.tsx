@@ -215,6 +215,7 @@ export default function CourseMap({ gpxPoints, markers, positionKm, onMapClick, 
       } else {
         const layer = L.marker([spot.lat, spot.lng], { icon: spectatorIcon })
           .bindPopup(popupHtml, { maxWidth: 260 })
+          .bindTooltip(spot.name, { permanent: true, direction: 'right', className: 'spectator-label', offset: [8, 0] })
           .addTo(map);
         spectatorLayersRef.current.set(spot.id, layer);
       }
