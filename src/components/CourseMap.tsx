@@ -317,7 +317,7 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
                 padding: '5px 10px 5px 6px',
                 boxShadow: hoveredSpotId === spot.id ? '0 2px 8px rgba(168,85,247,0.25)' : '0 1px 3px rgba(0,0,0,0.1)',
                 width: 190,
-                height: 80,
+                height: 160,
                 flexShrink: 0,
                 overflowY: 'auto',
                 scrollbarWidth: 'none',
