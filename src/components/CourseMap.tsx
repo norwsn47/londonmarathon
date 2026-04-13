@@ -22,14 +22,12 @@ function createOfficialIcon(title: string) {
   });
 }
 
-const userIcon = new L.Icon({
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  className: 'marker-user',
+const userIcon = L.divIcon({
+  className: '',
+  html: '<div style="width:12px;height:12px;background:#a855f7;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.5)"></div>',
+  iconSize: [12, 12],
+  iconAnchor: [6, 6],
+  popupAnchor: [0, -10],
 });
 
 // Purple circle icon for spectator viewing spots
@@ -135,7 +133,8 @@ export default function CourseMap({ gpxPoints, markers, positionKm, onMapClick, 
       if (markerLayersRef.current.has(marker.id)) continue;
       const icon = marker.type === 'official' ? createOfficialIcon(marker.title) : userIcon;
       const layer = L.marker([marker.lat, marker.lng], { icon })
-        .bindPopup(`<b>${marker.title}</b>${marker.description ? `<br/><span style="font-size:12px;color:#94a3b8">${marker.description}</span>` : ''}`)
+        .bindPopup(`<b style="color:#0f172a">${marker.title}</b>${marker.description ? `<br/><span style="font-size:12px;color:#64748b">${marker.description}</span>` : ''}`)
+        .bindTooltip(marker.title, { permanent: true, direction: 'right', className: 'spectator-label', offset: [8, 0] })
         .addTo(map);
       markerLayersRef.current.set(marker.id, layer);
     }
