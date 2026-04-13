@@ -310,7 +310,7 @@ export default function CourseMap({ gpxPoints, markers, spectatorPredictions = [
                 display: 'flex', flexDirection: 'row', alignItems: 'flex-end', gap: 6,
                 overflowX: 'auto', scrollbarWidth: 'none',
                 paddingRight: sortedSpots.length > 4 ? 52 : 0,
-                pointerEvents: 'auto',
+                pointerEvents: 'none',
               }}
             >
               {sortedSpots.map((spot, i) => {
@@ -327,6 +327,7 @@ export default function CourseMap({ gpxPoints, markers, spectatorPredictions = [
                     onClick={() => setSelectedSpotId(prev => prev === spot.id ? null : spot.id)}
                     style={{
                       position: 'relative',
+                      pointerEvents: 'auto',
                       display: 'flex', flexDirection: 'column', gap: 5,
                       background: isSelected ? 'rgba(245,240,255,0.98)' : isActive ? 'rgba(250,247,255,0.97)' : 'rgba(255,255,255,0.93)',
                       border: isSelected ? '1.5px solid #a855f7' : isActive ? '1px solid #c084fc' : '1px solid #e2e8f0',
