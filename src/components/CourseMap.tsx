@@ -13,13 +13,17 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-const officialDot = L.divIcon({
-  className: '',
-  html: '<div style="width:10px;height:10px;background:#f97316;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.3)"></div>',
-  iconSize: [10, 10],
-  iconAnchor: [5, 5],
-  popupAnchor: [0, -8],
-});
+function createOfficialIcon(title: string): L.DivIcon {
+  return L.divIcon({
+    className: 'official-marker-icon',
+    html: `<div style="display:flex;align-items:center;gap:5px;white-space:nowrap">
+      <div style="width:8px;height:8px;flex-shrink:0;background:#f97316;border-radius:50%;border:1.5px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.35)"></div>
+      <span style="font-size:var(--text-xs);font-weight:700;color:#f97316;font-family:system-ui,sans-serif;letter-spacing:0.02em;text-shadow:0 1px 0 white,0 -1px 0 white,1px 0 0 white,-1px 0 0 white,0 0 6px rgba(255,255,255,0.9)">${title}</span>
+    </div>`,
+    iconAnchor: [4, 4],
+    popupAnchor: [0, -8],
+  });
+}
 
 const spectatorIcon = L.divIcon({
   className: '',
@@ -200,9 +204,8 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
         <div style="font-size:13px;font-weight:700">${marker.title}</div>
         ${marker.description ? `<div style="font-size:11px;color:#64748b;margin-top:2px">${marker.description}</div>` : ''}
       </div>`;
-      const layer = L.marker([marker.lat, marker.lng], { icon: officialDot })
+      const layer = L.marker([marker.lat, marker.lng], { icon: createOfficialIcon(marker.title) })
         .bindPopup(popupHtml, { maxWidth: 260 })
-        .bindTooltip(marker.title, { permanent: true, direction: 'right', className: 'spectator-label', offset: [8, 0] })
         .addTo(map);
       markerLayersRef.current.set(marker.id, layer);
     }

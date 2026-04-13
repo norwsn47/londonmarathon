@@ -71,27 +71,11 @@
   display: none !important;
 }
 
-/* Official course marker labels (DivIcon) */
-.official-label-icon {
+/* Official course marker icon container */
+.official-marker-icon {
   background: transparent !important;
   border: none !important;
-  width: auto !important;
-  height: auto !important;
   overflow: visible !important;
-}
-.official-label {
-  background: #f97316;
-  color: #fff;
-  font-size: var(--text-xs);
-  font-weight: 700;
-  font-family: system-ui, sans-serif;
-  letter-spacing: 0.02em;
-  padding: 2px 7px;
-  border-radius: 999px;
-  white-space: nowrap;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
-  border: 1.5px solid #fff;
-  display: inline-block;
 }
 
 /* ── Range slider ────────────────────────────────────────────────────────── */
