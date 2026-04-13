@@ -326,6 +326,7 @@ export default function CourseMap({ gpxPoints, markers, spectatorPredictions = [
                     onMouseLeave={() => setHoveredSpotId(null)}
                     onClick={() => setSelectedSpotId(prev => prev === spot.id ? null : spot.id)}
                     style={{
+                      position: 'relative',
                       display: 'flex', flexDirection: 'column', gap: 5,
                       background: isSelected ? 'rgba(245,240,255,0.98)' : isActive ? 'rgba(250,247,255,0.97)' : 'rgba(255,255,255,0.93)',
                       border: isSelected ? '1.5px solid #a855f7' : isActive ? '1px solid #c084fc' : '1px solid #e2e8f0',
@@ -337,38 +338,53 @@ export default function CourseMap({ gpxPoints, markers, spectatorPredictions = [
                       transition: 'border-color 0.18s, box-shadow 0.18s, background 0.18s, padding 0.18s, width 0.18s',
                     }}
                   >
-                    {/* Compact row — always visible */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                      <span style={{
-                        width: 20, height: 20, borderRadius: '50%',
-                        background: isActive ? '#9333ea' : '#a855f7',
-                        color: 'white', fontSize: 'var(--text-xs)', fontWeight: 700,
-                        fontFamily: 'system-ui,sans-serif',
-                        textAlign: 'center', lineHeight: '20px', flexShrink: 0,
-                      }}>{letter}</span>
-                      <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {spot.name}
-                        </div>
-                        <div style={{ display: 'flex', gap: 6, marginTop: 1 }}>
-                          <span style={{ fontSize: 'var(--text-xs)', color: '#94a3b8', letterSpacing: '0.02em' }}>{distLabel}</span>
-                          {spot.clockTime && (
-                            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#ea580c' }}>{spot.clockTime}</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Expanded content — grows upward via align-items: flex-end on parent */}
+                    {/* Collapse icon — top-right when expanded */}
                     {isActive && (
+                      <button
+                        onClick={e => { e.stopPropagation(); setSelectedSpotId(null); setHoveredSpotId(null); }}
+                        style={{
+                          position: 'absolute', top: 6, right: 6,
+                          width: 18, height: 18, borderRadius: '50%',
+                          background: 'rgba(168,85,247,0.12)', border: 'none',
+                          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          color: '#a855f7', padding: 0,
+                        }}
+                        title="Close"
+                      >
+                        <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+                          <path d="M1.5 1.5l6 6M7.5 1.5l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                        </svg>
+                      </button>
+                    )}
+
+                    {isActive ? (
+                      /* Expanded layout: letter at top, then name/dist below */
                       <>
+                        <span style={{
+                          width: 24, height: 24, borderRadius: '50%',
+                          background: '#9333ea',
+                          color: 'white', fontSize: 'var(--text-sm)', fontWeight: 700,
+                          fontFamily: 'system-ui,sans-serif',
+                          textAlign: 'center', lineHeight: '24px', flexShrink: 0,
+                        }}>{letter}</span>
+                        <div>
+                          <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: '#1e293b', paddingRight: 20 }}>
+                            {spot.name}
+                          </div>
+                          <div style={{ display: 'flex', gap: 6, marginTop: 1 }}>
+                            <span style={{ fontSize: 'var(--text-xs)', color: '#94a3b8', letterSpacing: '0.02em' }}>{distLabel}</span>
+                            {spot.clockTime && (
+                              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#ea580c' }}>{spot.clockTime}</span>
+                            )}
+                          </div>
+                        </div>
                         {spot.description && (
-                          <div style={{ fontSize: 'var(--text-xs)', color: '#64748b', lineHeight: 1.45, letterSpacing: '0.02em', paddingLeft: 27 }}>
+                          <div style={{ fontSize: 'var(--text-xs)', color: '#64748b', lineHeight: 1.45, letterSpacing: '0.02em' }}>
                             {spot.description}
                           </div>
                         )}
                         {spot.nearestStations.length > 0 && (
-                          <div style={{ paddingLeft: 27 }}>
+                          <div>
                             <div style={{ fontSize: 'var(--text-xs)', color: '#ea580c', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 3 }}>
                               Nearest stations
                             </div>
@@ -385,16 +401,35 @@ export default function CourseMap({ gpxPoints, markers, spectatorPredictions = [
                         )}
                         {spot.crowdNotes && (
                           <div style={{
-                            paddingLeft: 27, borderTop: '1px solid #e2e8f0', paddingTop: 5,
+                            borderTop: '1px solid #e2e8f0', paddingTop: 5,
                             fontSize: 'var(--text-xs)', color: '#64748b', lineHeight: 1.45, letterSpacing: '0.02em',
                           }}>
                             {spot.crowdNotes}
                           </div>
                         )}
-                        <div style={{ paddingLeft: 27, fontSize: 'var(--text-xs)', color: '#c4b5fd' }}>
-                          {isSelected ? 'Click to close' : 'Click to pin open'}
-                        </div>
                       </>
+                    ) : (
+                      /* Compact layout: letter beside name */
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                        <span style={{
+                          width: 20, height: 20, borderRadius: '50%',
+                          background: '#a855f7',
+                          color: 'white', fontSize: 'var(--text-xs)', fontWeight: 700,
+                          fontFamily: 'system-ui,sans-serif',
+                          textAlign: 'center', lineHeight: '20px', flexShrink: 0,
+                        }}>{letter}</span>
+                        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                          <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {spot.name}
+                          </div>
+                          <div style={{ display: 'flex', gap: 6, marginTop: 1 }}>
+                            <span style={{ fontSize: 'var(--text-xs)', color: '#94a3b8', letterSpacing: '0.02em' }}>{distLabel}</span>
+                            {spot.clockTime && (
+                              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#ea580c' }}>{spot.clockTime}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     )}
                   </div>
                 );
