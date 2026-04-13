@@ -120,16 +120,10 @@ export default function App() {
       .then(r => r.text())
       .then(text => { const pts = parseGpx(text); if (pts.length) setGpxPoints(pts); })
       .catch(() => {});
-  }, []);
-
-  useEffect(() => {
     fetch('/api/official-markers')
       .then(r => r.json())
       .then((data: CourseMarker[]) => { if (Array.isArray(data) && data.length) setOfficialMarkers(data); })
       .catch(() => {});
-  }, []);
-
-  useEffect(() => {
     fetch('/api/spectator-spots')
       .then(r => r.json())
       .then((data: SpectatorSpot[]) => { if (Array.isArray(data) && data.length) setSpectatorSpots(data); })
@@ -159,7 +153,6 @@ export default function App() {
         <CourseMap
           gpxPoints={gpxPoints}
           markers={officialMarkers}
-          positionKm={null}
           spectatorPredictions={spectatorPredictions}
           displayUnit={displayUnit}
           markerPredictions={markerPredictions}

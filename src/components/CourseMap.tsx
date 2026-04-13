@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { GpxPoint } from '../lib/gpxParser';
@@ -91,19 +91,17 @@ function buildMarkerPopupHtml(
 interface Props {
   gpxPoints: GpxPoint[];
   markers: CourseMarker[];
-  positionKm?: number | null;
   spectatorPredictions?: SpotPrediction[];
   displayUnit?: 'km' | 'mi';
   markerPredictions?: Record<string, { elapsed: string; clock: string }>;
 }
 
-export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPredictions = [], displayUnit = 'km', markerPredictions = {} }: Props) {
+export default function CourseMap({ gpxPoints, markers, spectatorPredictions = [], displayUnit = 'km', markerPredictions = {} }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const routeLayerRef = useRef<L.Polyline | null>(null);
   const markerLayersRef = useRef<Map<string, L.Marker>>(new Map());
-  const positionMarkerRef = useRef<L.CircleMarker | null>(null);
   const spectatorLayersRef = useRef<Map<string, L.Marker>>(new Map());
 
   const cardRowRef = useRef<HTMLDivElement>(null);
@@ -113,7 +111,10 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
   const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
 
   // Spots sorted by course distance — defines numbering 1–N
-  const sortedSpots = [...spectatorPredictions].sort((a, b) => a.distanceKm - b.distanceKm);
+  const sortedSpots = useMemo(
+    () => [...spectatorPredictions].sort((a, b) => a.distanceKm - b.distanceKm),
+    [spectatorPredictions],
+  );
 
   // Initialise map once
   useEffect(() => {
@@ -157,9 +158,8 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
 
   // Swap icons: zoomed-out → lettered (glow on hover/select); zoomed-in → binoculars
   useEffect(() => {
-    const sorted = [...spectatorPredictions].sort((a, b) => a.distanceKm - b.distanceKm);
     if (zoom < ZOOM_THRESHOLD) {
-      sorted.forEach((spot, i) => {
+      sortedSpots.forEach((spot, i) => {
         const layer = spectatorLayersRef.current.get(spot.id);
         if (!layer) return;
         const letter = String.fromCharCode(65 + i);
@@ -171,7 +171,7 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
         layer.setIcon(spectatorIcon);
       }
     }
-  }, [zoom, spectatorPredictions, hoveredSpotId, selectedSpotId]);
+  }, [zoom, sortedSpots, hoveredSpotId, selectedSpotId]);
 
   // Draw GPX route
   useEffect(() => {
@@ -222,36 +222,6 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
       }
     }
   }, [markers, markerPredictions]);
-
-  // Draw runner position
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-
-    if (positionMarkerRef.current) {
-      positionMarkerRef.current.remove();
-      positionMarkerRef.current = null;
-    }
-
-    if (positionKm == null || !gpxPoints.length) return;
-
-    let closest = gpxPoints[0];
-    let minDiff = Math.abs(gpxPoints[0].distKm - positionKm);
-    for (const pt of gpxPoints) {
-      const diff = Math.abs(pt.distKm - positionKm);
-      if (diff < minDiff) { minDiff = diff; closest = pt; }
-    }
-
-    positionMarkerRef.current = L.circleMarker([closest.lat, closest.lng], {
-      radius: 8,
-      color: '#4ade80',
-      fillColor: '#4ade80',
-      fillOpacity: 0.9,
-      weight: 2,
-    })
-      .bindPopup(`📍 ${positionKm.toFixed(1)} km`)
-      .addTo(map);
-  }, [positionKm, gpxPoints]);
 
   // Scroll selected tile into view when selected via map click
   useEffect(() => {
