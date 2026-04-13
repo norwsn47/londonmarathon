@@ -1,15 +1,9 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
-import type { Segment, Strategy, CourseMarker } from './lib/types';
-import {
-  generateSegments,
-  totalTimeSeconds,
-  getPositionAtTime,
-  formatDuration,
-} from './lib/paceUtils';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import type { Segment, CourseMarker } from './lib/types';
+import { generateSegments } from './lib/paceUtils';
 import { parseGpx, type GpxPoint } from './lib/gpxParser';
 import { predictSpotTimes, type SpotPrediction } from './lib/spectatorSpots';
 import CourseMap from './components/CourseMap';
-import PositionSlider from './components/PositionSlider';
 
 // Pre-populated official course markers
 const OFFICIAL_MARKERS: CourseMarker[] = [
@@ -23,28 +17,26 @@ const OFFICIAL_MARKERS: CourseMarker[] = [
 ];
 
 const DEFAULT_TARGET = 4 * 3600;
-
 const UNIT = 'km' as const;
-const NEGATIVE_PCT = 3;
+
+function secToHMM(sec: number): string {
+  return `${Math.floor(sec / 3600)}:${String(Math.floor((sec % 3600) / 60)).padStart(2, '0')}`;
+}
 
 export default function App() {
-  // Pace plan state
   const [targetSec, setTargetSec] = useState(DEFAULT_TARGET);
-  const [strategy, setStrategy] = useState<Strategy>('even');
   const [segments, setSegments] = useState<Segment[]>(() =>
     generateSegments(DEFAULT_TARGET, 'even', UNIT),
   );
-
-  // Map / GPX state
   const [gpxPoints, setGpxPoints] = useState<GpxPoint[]>([]);
-  const [elapsedSec, setElapsedSec] = useState(0);
   const [displayUnit, setDisplayUnit] = useState<'km' | 'mi'>('km');
-
-  const projectedSec = totalTimeSeconds(segments);
-  const positionKm = getPositionAtTime(segments, elapsedSec);
-
-  // Gun start time — user-configurable, default 10:00
   const [startTimeStr, setStartTimeStr] = useState('10:00');
+
+  // Editable target time state
+  const [editingTarget, setEditingTarget] = useState(false);
+  const [targetInputVal, setTargetInputVal] = useState(secToHMM(DEFAULT_TARGET));
+  const targetInputRef = useRef<HTMLInputElement>(null);
+
   const runnerStartTime = useMemo(() => {
     const [h, m] = startTimeStr.split(':').map(Number);
     const d = new Date();
@@ -57,7 +49,11 @@ export default function App() {
     [runnerStartTime, segments],
   );
 
-  // Load London Marathon GPX from public folder
+  const predictedFinishTime = useMemo(() => {
+    const finish = new Date(runnerStartTime.getTime() + targetSec * 1000);
+    return finish.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  }, [runnerStartTime, targetSec]);
+
   useEffect(() => {
     fetch('/london-marathon.gpx')
       .then(r => r.text())
@@ -65,22 +61,24 @@ export default function App() {
         const pts = parseGpx(text);
         if (pts.length) setGpxPoints(pts);
       })
-      .catch(() => { /* GPX not yet uploaded to /public */ });
+      .catch(() => {});
   }, []);
 
-  const handleTargetChange = useCallback((newTarget: number) => {
-    setTargetSec(newTarget);
-    if (strategy !== 'custom') {
-      setSegments(generateSegments(newTarget, strategy, UNIT, NEGATIVE_PCT));
-    }
-  }, [strategy]);
+  function applyTargetChange(newSec: number) {
+    setTargetSec(newSec);
+    setSegments(generateSegments(newSec, 'even', UNIT));
+    setTargetInputVal(secToHMM(newSec));
+  }
 
-  const handleStrategySelect = useCallback((s: Strategy) => {
-    setStrategy(s);
-    if (s !== 'custom') {
-      setSegments(generateSegments(targetSec, s, UNIT, NEGATIVE_PCT));
+  function commitTargetInput() {
+    setEditingTarget(false);
+    const parts = targetInputVal.split(':').map(s => parseInt(s.trim(), 10));
+    if (parts.length === 2 && !parts.some(isNaN) && parts[1] >= 0 && parts[1] < 60 && parts[0] >= 0) {
+      applyTargetChange(parts[0] * 3600 + parts[1] * 60);
+    } else {
+      setTargetInputVal(secToHMM(targetSec)); // revert on invalid input
     }
-  }, [targetSec]);
+  }
 
   return (
     <div className="w-screen h-screen overflow-hidden relative font-sans">
@@ -89,13 +87,13 @@ export default function App() {
         <CourseMap
           gpxPoints={gpxPoints}
           markers={OFFICIAL_MARKERS}
-          positionKm={positionKm}
+          positionKm={null}
           spectatorPredictions={spectatorPredictions}
           displayUnit={displayUnit}
         />
       </div>
 
-      {/* Top bar: logo left, target time right */}
+      {/* Top bar: logo left, editable target time right */}
       <div className="absolute top-0 left-0 right-0 z-[1000] flex items-center justify-between px-4 h-14 bg-white/95 backdrop-blur-sm border-b border-border shadow-sm">
         {/* Logo + title */}
         <div className="flex items-center gap-2.5">
@@ -111,110 +109,74 @@ export default function App() {
           </div>
         </div>
 
-        {/* Target time buttons */}
-        <div className="flex items-center gap-2">
-          <span className="t-xs text-slate-400 mr-1">Target</span>
-          {[
-            { label: '3:30', sec: 3 * 3600 + 30 * 60 },
-            { label: '4:00', sec: 4 * 3600 },
-            { label: '4:30', sec: 4 * 3600 + 30 * 60 },
-            { label: '5:00', sec: 5 * 3600 },
-          ].map(({ label, sec }) => (
+        {/* Editable target time */}
+        <div className="flex items-center gap-2.5">
+          <span className="t-xs text-slate-400 uppercase tracking-widest">Target</span>
+          {editingTarget ? (
+            <input
+              ref={targetInputRef}
+              type="text"
+              value={targetInputVal}
+              onChange={e => setTargetInputVal(e.target.value)}
+              onBlur={commitTargetInput}
+              onKeyDown={e => {
+                if (e.key === 'Enter') targetInputRef.current?.blur();
+                if (e.key === 'Escape') { setTargetInputVal(secToHMM(targetSec)); setEditingTarget(false); }
+              }}
+              className="w-20 text-center t-lg font-bold font-mono text-orange-600 bg-orange-500/5 border border-orange-500/50 rounded-xl px-2 py-0.5 outline-none"
+              autoFocus
+            />
+          ) : (
             <button
-              key={label}
-              onClick={() => handleTargetChange(sec)}
-              className={`t-sm font-semibold px-3 py-1.5 rounded-xl border transition-all ${
-                targetSec === sec
-                  ? 'bg-orange-500/10 border-orange-500/50 text-orange-600'
-                  : 'bg-surface-2 border-border text-slate-500 hover:border-slate-400 hover:text-slate-900'
-              }`}
+              onClick={() => { setTargetInputVal(secToHMM(targetSec)); setEditingTarget(true); }}
+              title="Click to edit target time"
+              className="t-lg font-bold font-mono text-orange-600 bg-orange-500/5 border border-orange-500/20 rounded-xl px-3 py-0.5 hover:border-orange-500/50 hover:bg-orange-500/10 transition-all"
             >
-              {label}
+              {secToHMM(targetSec)}
             </button>
-          ))}
+          )}
         </div>
       </div>
 
       {/* Right panel — below top bar */}
-      <div className="absolute right-4 top-[64px] bottom-4 w-72 z-[1000] flex flex-col gap-3 overflow-y-auto">
-        {/* Strategy + Distance + Gun start */}
-        <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-4 border border-border shadow-xl">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="t-xs text-slate-500">Strategy:</span>
-            {(['even', 'negative'] as Strategy[]).map(s => (
-              <button
-                key={s}
-                onClick={() => handleStrategySelect(s)}
-                className={`t-sm font-semibold px-2.5 py-1 rounded-lg border transition-all ${
-                  strategy === s
-                    ? 'bg-orange-500/10 border-orange-500/50 text-orange-600'
-                    : 'border-border text-slate-500 hover:text-slate-900'
-                }`}
-              >
-                {s === 'even' ? 'Even' : 'Negative'}
-              </button>
-            ))}
+      <div className="absolute right-4 top-[64px] z-[1000] w-56">
+        <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-4 border border-border shadow-xl flex flex-col gap-4">
+          {/* Predicted finish time */}
+          <div>
+            <p className="t-xs font-semibold text-slate-400 uppercase tracking-widest mb-0.5">Predicted finish</p>
+            <p className="t-lg font-bold text-slate-900">{predictedFinishTime}</p>
           </div>
 
-          <div className="flex items-center gap-2 mt-2">
-            <span className="t-xs text-slate-500">Distance:</span>
-            {(['km', 'mi'] as const).map(u => (
-              <button
-                key={u}
-                onClick={() => setDisplayUnit(u)}
-                className={`t-sm font-semibold px-2.5 py-1 rounded-lg border transition-all ${
-                  displayUnit === u
-                    ? 'bg-orange-500/10 border-orange-500/50 text-orange-600'
-                    : 'border-border text-slate-500 hover:text-slate-900'
-                }`}
-              >
-                {u}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border">
-            <label className="t-xs font-semibold text-slate-500 uppercase tracking-widest whitespace-nowrap">
-              Gun start
+          {/* Start time */}
+          <div>
+            <label className="t-xs font-semibold text-slate-400 uppercase tracking-widest block mb-1">
+              Start time
             </label>
             <input
               type="time"
               value={startTimeStr}
               onChange={e => setStartTimeStr(e.target.value)}
-              className="ml-auto t-sm font-mono font-semibold text-slate-900 bg-surface-2 border border-border rounded-lg px-2 py-1 outline-none focus:border-orange-500/60 transition-colors"
+              className="t-md font-semibold font-mono text-slate-900 bg-surface-2 border border-border rounded-lg px-2 py-1 outline-none focus:border-orange-500/60 transition-colors w-full"
             />
           </div>
-        </div>
 
-        {/* Position slider */}
-        <div className="bg-white/95 backdrop-blur-sm rounded-2xl border border-border shadow-xl">
-          <PositionSlider
-            segments={segments}
-            elapsedSec={elapsedSec}
-            onChange={setElapsedSec}
-            displayUnit={displayUnit}
-          />
-        </div>
-
-        {/* Pace summary */}
-        <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-4 border border-border shadow-xl">
-          <p className="t-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">
-            Pace Summary
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-surface-2 rounded-xl p-3 border border-border">
-              <p className="t-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Target</p>
-              <p className="t-sm font-bold font-mono text-slate-900">{formatDuration(targetSec)}</p>
-            </div>
-            <div className="bg-surface-2 rounded-xl p-3 border border-border">
-              <p className="t-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Projected</p>
-              <p className={`t-sm font-bold font-mono ${
-                Math.abs(projectedSec - targetSec) < 15 ? 'text-slate-900'
-                : projectedSec < targetSec ? 'text-green-600'
-                : 'text-red-500'
-              }`}>
-                {formatDuration(projectedSec)}
-              </p>
+          {/* km / mi toggle */}
+          <div>
+            <p className="t-xs font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Distance</p>
+            <div className="flex gap-2">
+              {(['km', 'mi'] as const).map(u => (
+                <button
+                  key={u}
+                  onClick={() => setDisplayUnit(u)}
+                  className={`t-sm font-semibold px-3 py-1 rounded-lg border transition-all ${
+                    displayUnit === u
+                      ? 'bg-orange-500/10 border-orange-500/50 text-orange-600'
+                      : 'border-border text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  {u}
+                </button>
+              ))}
             </div>
           </div>
         </div>
