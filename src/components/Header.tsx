@@ -3,9 +3,10 @@ import type { User } from '@supabase/supabase-js';
 
 interface Props {
   user: User | null;
+  onSignInClick: () => void;
 }
 
-export default function Header({ user }: Props) {
+export default function Header({ user, onSignInClick }: Props) {
   async function handleSignOut() {
     await supabase.auth.signOut();
   }
@@ -27,7 +28,7 @@ export default function Header({ user }: Props) {
         </div>
       </div>
 
-      {user && (
+      {user ? (
         <div className="flex items-center gap-3">
           <span className="text-xs text-slate-500 hidden sm:block truncate max-w-[160px]">{user.email}</span>
           <button
@@ -37,6 +38,13 @@ export default function Header({ user }: Props) {
             Sign out
           </button>
         </div>
+      ) : (
+        <button
+          onClick={onSignInClick}
+          className="text-xs font-semibold text-orange-400 hover:text-orange-300 border border-orange-500/40 hover:border-orange-400/60 px-3 py-1.5 rounded-lg transition-all"
+        >
+          Sign in
+        </button>
       )}
     </header>
   );

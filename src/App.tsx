@@ -7,25 +7,26 @@ import {
   calcAutoBalancePace,
   getPaceBounds,
   getPositionAtTime,
+  formatDuration,
 } from './lib/paceUtils';
 import { parseGpx, type GpxPoint } from './lib/gpxParser';
 import { supabase } from './lib/supabase';
 import { useAuth } from './hooks/useAuth';
 import Header from './components/Header';
-import AuthPage from './components/AuthPage';
+import AuthModal from './components/AuthModal';
 import CourseMap from './components/CourseMap';
 import PositionSlider from './components/PositionSlider';
 import AddMarkerModal from './components/AddMarkerModal';
 
-// Pre-populated official course markers — add your own here
+// Pre-populated official course markers — edit / extend as needed
 const OFFICIAL_MARKERS: CourseMarker[] = [
-  { id: 'start', lat: 51.4878, lng: 0.0063, title: 'Start Line', description: 'Blackheath — Championship & Mass start', type: 'official' },
-  { id: 'km10', lat: 51.4938, lng: -0.0518, title: '10 km', description: 'Charlton Way / Woolwich Road', type: 'official' },
-  { id: 'tower-bridge', lat: 51.5055, lng: -0.0754, title: 'Tower Bridge', description: '~12.5 km — iconic crossing', type: 'official' },
-  { id: 'half', lat: 51.5074, lng: -0.0834, title: 'Half Marathon', description: '21.1 km', type: 'official' },
-  { id: 'km30', lat: 51.4855, lng: -0.0541, title: '30 km', description: 'Isle of Dogs turnaround', type: 'official' },
-  { id: 'km40', lat: 51.5007, lng: -0.1196, title: '40 km', description: 'Embankment — nearly there!', type: 'official' },
-  { id: 'finish', lat: 51.5015, lng: -0.1247, title: 'Finish Line', description: 'The Mall — Buckingham Palace', type: 'official' },
+  { id: 'start',        lat: 51.4878,  lng:  0.0063,  title: 'Start Line',     description: 'Blackheath — Championship & Mass start', type: 'official' },
+  { id: 'km10',         lat: 51.4938,  lng: -0.0518,  title: '10 km',          description: 'Charlton Way / Woolwich Road',            type: 'official' },
+  { id: 'tower-bridge', lat: 51.5055,  lng: -0.0754,  title: 'Tower Bridge',   description: '~12.5 km — iconic crossing',              type: 'official' },
+  { id: 'half',         lat: 51.5074,  lng: -0.0834,  title: 'Half Marathon',  description: '21.1 km',                                 type: 'official' },
+  { id: 'km30',         lat: 51.4855,  lng: -0.0541,  title: '30 km',          description: 'Isle of Dogs turnaround',                 type: 'official' },
+  { id: 'km40',         lat: 51.5007,  lng: -0.1196,  title: '40 km',          description: 'Embankment — nearly there!',              type: 'official' },
+  { id: 'finish',       lat: 51.5015,  lng: -0.1247,  title: 'Finish Line',    description: 'The Mall — Buckingham Palace',            type: 'official' },
 ];
 
 const DEFAULT_TARGET = 4 * 3600;
@@ -33,11 +34,20 @@ const DEFAULT_TARGET = 4 * 3600;
 export default function App() {
   const { user, loading: authLoading } = useAuth();
 
+  // Auth modal
+  const [showAuth, setShowAuth] = useState(false);
+  const [authReason, setAuthReason] = useState<string | undefined>();
+
+  function promptSignIn(reason?: string) {
+    setAuthReason(reason);
+    setShowAuth(true);
+  }
+
   // Pace plan state
   const [targetSec, setTargetSec] = useState(DEFAULT_TARGET);
-  const [unit, setUnit] = useState<Unit>('km');
+  const [unit] = useState<Unit>('km');
   const [strategy, setStrategy] = useState<Strategy>('even');
-  const [negativePct, setNegativePct] = useState<NegativePct>(3);
+  const [negativePct] = useState<NegativePct>(3);
   const [segments, setSegments] = useState<Segment[]>(() =>
     generateSegments(DEFAULT_TARGET, 'even', 'km'),
   );
@@ -64,10 +74,7 @@ export default function App() {
   const projectedSec = totalTimeSeconds(displaySegments);
   const positionKm = getPositionAtTime(displaySegments, elapsedSec);
 
-  const allMarkers = useMemo(
-    () => [...OFFICIAL_MARKERS, ...userMarkers],
-    [userMarkers],
-  );
+  const allMarkers = useMemo(() => [...OFFICIAL_MARKERS, ...userMarkers], [userMarkers]);
 
   // Load London Marathon GPX from public folder
   useEffect(() => {
@@ -77,12 +84,12 @@ export default function App() {
         const pts = parseGpx(text);
         if (pts.length) setGpxPoints(pts);
       })
-      .catch(() => { /* GPX not yet added */ });
+      .catch(() => { /* GPX not yet uploaded to /public */ });
   }, []);
 
-  // Load user markers from Supabase
+  // Load this user's saved markers from Supabase
   useEffect(() => {
-    if (!user) return;
+    if (!user) { setUserMarkers([]); return; }
     supabase
       .from('markers')
       .select('*')
@@ -92,25 +99,36 @@ export default function App() {
       });
   }, [user]);
 
+  // When auth modal closes after sign-in, resume any pending action
+  useEffect(() => {
+    if (user && showAuth) setShowAuth(false);
+  }, [user, showAuth]);
+
+  function handleAddMarkerClick() {
+    if (!user) {
+      promptSignIn('Sign in to save markers on the course');
+      return;
+    }
+    setAddingMarker(v => !v);
+  }
+
   const handleMapClick = useCallback((lat: number, lng: number) => {
-    if (!addingMarker) return;
+    if (!addingMarker || !user) return;
     setPendingLatLng({ lat, lng });
-  }, [addingMarker]);
+  }, [addingMarker, user]);
 
   async function saveMarker(title: string, description: string) {
     if (!pendingLatLng || !user) return;
-    const newMarker: Omit<CourseMarker, 'id'> = {
+    const newMarker = {
       lat: pendingLatLng.lat,
       lng: pendingLatLng.lng,
       title,
       description,
-      type: 'user',
+      type: 'user' as const,
       created_by: user.id,
     };
     const { data, error } = await supabase.from('markers').insert(newMarker).select().single();
-    if (!error && data) {
-      setUserMarkers(prev => [...prev, data as CourseMarker]);
-    }
+    if (!error && data) setUserMarkers(prev => [...prev, data as CourseMarker]);
     setPendingLatLng(null);
     setAddingMarker(false);
   }
@@ -130,6 +148,7 @@ export default function App() {
     }
   }, [targetSec, unit, negativePct]);
 
+  // Brief loading spinner while Supabase checks for an existing session
   if (authLoading) {
     return (
       <div className="min-h-screen bg-[#0d0d12] flex items-center justify-center">
@@ -138,12 +157,10 @@ export default function App() {
     );
   }
 
-  if (!user) return <AuthPage />;
-
   return (
     <div className="min-h-screen bg-[#0d0d12] text-slate-100 font-sans">
       <div className="max-w-2xl mx-auto px-4 pb-20">
-        <Header user={user} />
+        <Header user={user} onSignInClick={() => promptSignIn()} />
 
         <div className="space-y-4">
           {/* Course map */}
@@ -155,26 +172,39 @@ export default function App() {
             canAddMarkers={addingMarker}
           />
 
-          {/* Add marker toggle */}
-          <div className="flex justify-end">
-            <button
-              onClick={() => setAddingMarker(v => !v)}
-              className={`text-xs font-semibold px-3 py-1.5 rounded-xl border transition-all ${
-                addingMarker
-                  ? 'bg-orange-500/15 border-orange-500/50 text-orange-400'
-                  : 'bg-surface border-border text-slate-400 hover:border-slate-500 hover:text-white'
-              }`}
-            >
-              {addingMarker ? '✕ Cancel' : '+ Add marker'}
-            </button>
+          {/* Add marker / login prompt */}
+          <div className="flex items-center justify-between">
+            {!user && (
+              <p className="text-xs text-slate-500">
+                <button
+                  onClick={() => promptSignIn('Sign in to save your own markers')}
+                  className="text-orange-400 hover:text-orange-300 underline underline-offset-2 transition-colors"
+                >
+                  Sign in
+                </button>
+                {' '}to add your own markers
+              </p>
+            )}
+            <div className="ml-auto">
+              <button
+                onClick={handleAddMarkerClick}
+                className={`text-xs font-semibold px-3 py-1.5 rounded-xl border transition-all ${
+                  addingMarker
+                    ? 'bg-orange-500/15 border-orange-500/50 text-orange-400'
+                    : 'bg-surface border-border text-slate-400 hover:border-slate-500 hover:text-white'
+                }`}
+              >
+                {addingMarker ? '✕ Cancel' : '+ Add marker'}
+              </button>
+            </div>
           </div>
 
-          {/* Target time (editable) */}
+          {/* Target time presets */}
           <div className="bg-surface rounded-2xl p-4 border border-border">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-2">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">
               Target Finish Time
             </p>
-            <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
               {[
                 { label: '3:30', sec: 3 * 3600 + 30 * 60 },
                 { label: '4:00', sec: 4 * 3600 },
@@ -219,7 +249,7 @@ export default function App() {
             onChange={setElapsedSec}
           />
 
-          {/* Summary */}
+          {/* Pace summary */}
           <div className="bg-surface rounded-2xl p-4 border border-border">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">
               Pace Summary
@@ -227,14 +257,16 @@ export default function App() {
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-surface-2 rounded-xl p-3 border border-border">
                 <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Target</p>
-                <p className="text-sm font-bold font-mono text-white">
-                  {`${Math.floor(targetSec / 3600)}:${String(Math.floor((targetSec % 3600) / 60)).padStart(2, '0')}:00`}
-                </p>
+                <p className="text-sm font-bold font-mono text-white">{formatDuration(targetSec)}</p>
               </div>
               <div className="bg-surface-2 rounded-xl p-3 border border-border">
                 <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Projected</p>
-                <p className={`text-sm font-bold font-mono ${Math.abs(projectedSec - targetSec) < 15 ? 'text-white' : projectedSec < targetSec ? 'text-green-400' : 'text-red-400'}`}>
-                  {`${Math.floor(projectedSec / 3600)}:${String(Math.floor((projectedSec % 3600) / 60)).padStart(2, '0')}:${String(Math.round(projectedSec % 60)).padStart(2, '0')}`}
+                <p className={`text-sm font-bold font-mono ${
+                  Math.abs(projectedSec - targetSec) < 15 ? 'text-white'
+                  : projectedSec < targetSec ? 'text-green-400'
+                  : 'text-red-400'
+                }`}>
+                  {formatDuration(projectedSec)}
                 </p>
               </div>
             </div>
@@ -242,7 +274,10 @@ export default function App() {
         </div>
       </div>
 
-      {/* Add marker modal */}
+      {/* Modals */}
+      {showAuth && (
+        <AuthModal reason={authReason} onClose={() => setShowAuth(false)} />
+      )}
       {pendingLatLng && (
         <AddMarkerModal
           lat={pendingLatLng.lat}
