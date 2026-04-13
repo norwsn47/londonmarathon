@@ -312,7 +312,7 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
                 transition: 'border-color 0.15s, box-shadow 0.15s, background 0.15s',
               }}>
               {/* Top row */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7, whiteSpace: 'nowrap' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7, flexWrap: 'wrap' }}>
                 {/* Letter badge */}
                 <span style={{
                   width: 19, height: 19, borderRadius: '50%',
@@ -323,7 +323,7 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
                   flexShrink: 0,
                 }}>{String.fromCharCode(65 + i)}</span>
                 {/* Name */}
-                <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '0.02em' }}>
+                <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: '#1e293b', letterSpacing: '0.02em', flex: 1, minWidth: 0 }}>
                   {spot.name}
                 </span>
                 {/* Distance marker */}
@@ -337,8 +337,8 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
               </div>
               {/* Description */}
               {spot.description && (
-                <div style={{ fontSize: 'var(--text-xs)', color: '#64748b', lineHeight: 1.4, letterSpacing: '0.02em', whiteSpace: 'normal', paddingLeft: 26 }}>
-                  {spot.description.length > 80 ? spot.description.slice(0, 77) + '…' : spot.description}
+                <div style={{ fontSize: 'var(--text-xs)', color: '#64748b', lineHeight: 1.4, letterSpacing: '0.02em', paddingLeft: 26 }}>
+                  {spot.description}
                 </div>
               )}
             </div>
