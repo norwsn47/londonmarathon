@@ -57,7 +57,7 @@ interface OverlayItem {
 
 interface OverlayData {
   items: OverlayItem[];
-  panelLeft: number;
+  panelLineX: number; // right edge of the left-side panel, where lines connect
 }
 
 interface Props {
@@ -86,7 +86,7 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
     const map = L.map(containerRef.current, {
       center: [51.5, -0.08],
       zoom: 13,
-      zoomControl: true,
+      zoomControl: false,
     });
 
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
@@ -94,6 +94,9 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
       subdomains: 'abcd',
       maxZoom: 19,
     }).addTo(map);
+
+    // Move zoom control to bottom-right so the left panel is unobstructed
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
 
     mapRef.current = map;
 
@@ -124,26 +127,26 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
       return;
     }
 
-    const containerW = wrapper.offsetWidth;
     const containerH = wrapper.offsetHeight;
-    const panelLeft = containerW - PANEL_W - PANEL_RIGHT;
+    const panelLineX = PANEL_RIGHT + PANEL_W; // right edge of left-side panel
 
-    const withPixels = spectatorPredictions
+    // Sort by race distance ascending (earliest point at top)
+    const sorted = [...spectatorPredictions]
+      .sort((a, b) => a.distanceKm - b.distanceKm)
       .map(spot => {
         const pt = map.latLngToContainerPoint([spot.lat, spot.lng]);
         return { spot, px: Math.round(pt.x), py: Math.round(pt.y) };
-      })
-      .sort((a, b) => a.py - b.py);
+      });
 
-    const totalH = withPixels.length * LABEL_H + (withPixels.length - 1) * LABEL_GAP;
+    const totalH = sorted.length * LABEL_H + (sorted.length - 1) * LABEL_GAP;
     const panelTop = Math.max(8, (containerH - totalH) / 2);
 
-    const items: OverlayItem[] = withPixels.map((item, i) => ({
+    const items: OverlayItem[] = sorted.map((item, i) => ({
       ...item,
       labelY: panelTop + i * (LABEL_H + LABEL_GAP),
     }));
 
-    setOverlayData({ items, panelLeft });
+    setOverlayData({ items, panelLineX });
   }, [zoom, spectatorPredictions]);
 
   // Draw GPX route
@@ -295,8 +298,8 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
               <g key={item.spot.id}>
                 <circle cx={item.px} cy={item.py} r="3.5" fill="#a855f7" opacity="0.85" />
                 <line
-                  x1={item.px} y1={item.py}
-                  x2={overlayData.panelLeft} y2={item.labelY + LABEL_H / 2}
+                  x1={overlayData.panelLineX} y1={item.labelY + LABEL_H / 2}
+                  x2={item.px} y2={item.py}
                   stroke="#a855f7" strokeWidth="1" strokeOpacity="0.4" strokeDasharray="3 2"
                 />
               </g>
@@ -305,7 +308,7 @@ export default function CourseMap({ gpxPoints, markers, positionKm, spectatorPre
 
           <div style={{
             position: 'absolute',
-            right: PANEL_RIGHT,
+            left: PANEL_RIGHT,
             top: overlayData.items[0]?.labelY ?? 8,
             display: 'flex',
             flexDirection: 'column',
