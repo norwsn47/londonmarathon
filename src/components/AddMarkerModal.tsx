@@ -23,7 +23,7 @@ export default function AddMarkerModal({ lat, lng, onSave, onCancel }: Props) {
         className="bg-surface border border-border rounded-2xl shadow-xl max-w-sm w-full p-5 animate-fade-in"
         onClick={e => e.stopPropagation()}
       >
-        <h3 className="text-sm font-bold text-slate-900 mb-1">Add marker</h3>
+        <h3 className="text-sm font-bold text-slate-900 mb-1">Add spectator spot</h3>
         <p className="text-[11px] text-slate-400 mb-4 font-mono">
           {lat.toFixed(5)}, {lng.toFixed(5)}
         </p>
@@ -31,7 +31,7 @@ export default function AddMarkerModal({ lat, lng, onSave, onCancel }: Props) {
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
             <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
-              Title *
+              Spot name *
             </label>
             <input
               autoFocus
@@ -40,20 +40,20 @@ export default function AddMarkerModal({ lat, lng, onSave, onCancel }: Props) {
               maxLength={60}
               value={title}
               onChange={e => setTitle(e.target.value)}
-              placeholder="e.g. Cheering point, Baggage, Water"
+              placeholder="e.g. Mile 13 cheer zone, Family meeting point"
               className="w-full bg-surface-2 border border-border rounded-xl px-3 py-2 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-orange-500/60 transition-colors"
             />
           </div>
           <div>
             <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
-              Notes (optional)
+              Access / crowd notes (optional)
             </label>
             <textarea
               maxLength={200}
               value={description}
               onChange={e => setDescription(e.target.value)}
-              placeholder="Any notes…"
-              rows={2}
+              placeholder="e.g. Nearest station, arrive early, meet by the railings…"
+              rows={3}
               className="w-full bg-surface-2 border border-border rounded-xl px-3 py-2 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-orange-500/60 transition-colors resize-none"
             />
           </div>
@@ -70,7 +70,7 @@ export default function AddMarkerModal({ lat, lng, onSave, onCancel }: Props) {
               type="submit"
               className="flex-1 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition-colors"
             >
-              Save
+              Save spot
             </button>
           </div>
         </form>

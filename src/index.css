@@ -19,7 +19,7 @@
   color: #475569 !important;
 }
 
-/* Spectator spot name labels */
+/* Spectator spot / user marker name labels (Leaflet tooltip) */
 .spectator-label {
   background: white !important;
   border: 1px solid #e2e8f0 !important;
@@ -30,9 +30,32 @@
   font-weight: 600 !important;
   padding: 2px 6px !important;
   white-space: nowrap !important;
+  max-width: none !important;
 }
 .spectator-label::before {
   display: none !important;
+}
+
+/* Official course marker labels (DivIcon) */
+.official-label-icon {
+  background: transparent !important;
+  border: none !important;
+  width: auto !important;
+  height: auto !important;
+  overflow: visible !important;
+}
+.official-label {
+  background: #f97316;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: system-ui, sans-serif;
+  padding: 2px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+  border: 1.5px solid #fff;
+  display: inline-block;
 }
 
 /* Range slider */
