@@ -158,6 +158,7 @@
             <th>Distance</th>
             <th>Stations</th>
             <th>Source</th>
+            <th>Maps</th>
             <th class="col-actions">Actions</th>
           </tr></thead>
           <tbody id="spots-tbody"></tbody>
@@ -403,6 +404,7 @@ function renderSpots() {
       <td>${s.distance_km} km<br><span style="color:#94a3b8;font-size:12px">mi ${s.distance_mile}</span></td>
       <td style="font-size:12px;color:#475569">${stations.slice(0,2).map(esc).join('<br>')}${stations.length > 2 ? `<br>+${stations.length-2} more` : ''}</td>
       <td style="font-size:13px">${s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer" title="${esc(s.url)}" style="color:#a855f7;text-decoration:none">🌐</a>` : '<span style="color:#e2e8f0">—</span>'}</td>
+      <td style="font-size:13px">${s.maps_url ? `<a href="${esc(s.maps_url)}" target="_blank" rel="noopener noreferrer" title="${esc(s.maps_url)}" style="text-decoration:none">📍</a>` : '<span style="color:#e2e8f0">—</span>'}</td>
       <td class="col-actions">
         <button class="edit-btn" onclick="editSpot('${s.id}')" title="Edit">✏️</button>
         <button class="del-btn" onclick="deleteSpot('${s.id}')" title="Delete">🗑️</button>
@@ -455,6 +457,7 @@ function spotModalHtml(s = null) {
     </div>
     <div class="field"><label>Crowd Notes</label><textarea id="sf-notes" rows="2" placeholder="Tips for spectators arriving/leaving">${esc(t('crowd_notes'))}</textarea></div>
     <div class="field"><label>Source URL</label><input id="sf-url" type="url" value="${esc(t('url'))}" placeholder="https://…"/><div class="hint">Link shown as globe icon on the spectator map card</div></div>
+    <div class="field"><label>Google Maps URL</label><input id="sf-maps-url" type="url" value="${esc(t('maps_url'))}" placeholder="https://maps.google.com/…"/><div class="hint">Link shown as Maps pin icon on the spectator map card</div></div>
     <div class="field"><label>Sort order</label><input id="sf-sort" type="number" value="${s ? s.sort_order : spots.length}" placeholder="0"/></div>
     <div class="modal-actions">
       <button class="cancel-btn" onclick="closeModal()">Cancel</button>
@@ -487,6 +490,7 @@ async function saveSpot(id) {
     nearest_stations: stations,
     crowd_notes: document.getElementById('sf-notes').value.trim(),
     url: document.getElementById('sf-url').value.trim(),
+    maps_url: document.getElementById('sf-maps-url').value.trim(),
     sort_order: parseInt(document.getElementById('sf-sort').value) || 0,
   };
 
@@ -648,12 +652,12 @@ function importMarkersCSV(input) {
 
 function exportSpotsCSV() {
   // nearest_stations joined with ; (safe separator inside a quoted field)
-  const header = ['id','name','description','distance_km','distance_mile','lat','lng','nearest_stations','crowd_notes','url','sort_order'];
+  const header = ['id','name','description','distance_km','distance_mile','lat','lng','nearest_stations','crowd_notes','url','maps_url','sort_order'];
   const rows = spots.map(s => [
     s.id, s.name, s.description, s.distance_km, s.distance_mile ?? '',
     s.lat, s.lng,
     parseStations(s.nearest_stations).join(';'),
-    s.crowd_notes, s.url ?? '', s.sort_order,
+    s.crowd_notes, s.url ?? '', s.maps_url ?? '', s.sort_order,
   ]);
   downloadCSV([header, ...rows], 'spectator-spots.csv');
   toast('Exported ' + spots.length + ' spots');
@@ -672,7 +676,7 @@ function importSpotsCSV(input) {
     const idC = col('id'), nameC = col('name'), descC = col('description');
     const distKmC = col('distance_km'), distMiC = col('distance_mile');
     const latC = col('lat'), lngC = col('lng');
-    const stationsC = col('nearest_stations'), notesC = col('crowd_notes'), urlC = col('url'), sortC = col('sort_order');
+    const stationsC = col('nearest_stations'), notesC = col('crowd_notes'), urlC = col('url'), mapsUrlC = col('maps_url'), sortC = col('sort_order');
     if (nameC === -1 || distKmC === -1 || latC === -1 || lngC === -1) {
       toast('CSV must have columns: name, distance_km, lat, lng', 'error'); return;
     }
@@ -691,6 +695,7 @@ function importSpotsCSV(input) {
           : [],
         crowd_notes:     notesC >= 0 ? r[notesC]?.trim() : '',
         url:             urlC >= 0 ? r[urlC]?.trim() : '',
+        maps_url:        mapsUrlC >= 0 ? r[mapsUrlC]?.trim() : '',
         sort_order:      sortC >= 0 ? (parseInt(r[sortC]) || 0) : 0,
       }))
       .filter(r => r.name && !isNaN(r.distance_km) && !isNaN(r.lat) && !isNaN(r.lng));

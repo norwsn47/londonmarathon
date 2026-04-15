@@ -408,27 +408,43 @@ export default function CourseMap({ gpxPoints, markers, spectatorPredictions = [
                             {spot.crowdNotes}
                           </div>
                         )}
-                        {spot.url && (
-                          <a
-                            href={spot.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={e => e.stopPropagation()}
-                            title="View source"
-                            style={{
-                              display: 'inline-flex', alignItems: 'center', gap: 4,
-                              fontSize: 'var(--text-xs)', color: '#a855f7', textDecoration: 'none',
-                              borderTop: '1px solid #e2e8f0', paddingTop: 5,
-                            }}
-                          >
-                            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.2"/>
-                              <ellipse cx="6" cy="6" rx="2.2" ry="5" stroke="currentColor" strokeWidth="1.2"/>
-                              <line x1="1" y1="4.5" x2="11" y2="4.5" stroke="currentColor" strokeWidth="1.2"/>
-                              <line x1="1" y1="7.5" x2="11" y2="7.5" stroke="currentColor" strokeWidth="1.2"/>
-                            </svg>
-                            Source
-                          </a>
+                        {(spot.url || spot.mapsUrl) && (
+                          <div style={{ display: 'flex', gap: 8, borderTop: '1px solid #e2e8f0', paddingTop: 5 }}>
+                            {spot.url && (
+                              <a
+                                href={spot.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={e => e.stopPropagation()}
+                                title="View source"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-xs)', color: '#a855f7', textDecoration: 'none' }}
+                              >
+                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                                  <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.2"/>
+                                  <ellipse cx="6" cy="6" rx="2.2" ry="5" stroke="currentColor" strokeWidth="1.2"/>
+                                  <line x1="1" y1="4.5" x2="11" y2="4.5" stroke="currentColor" strokeWidth="1.2"/>
+                                  <line x1="1" y1="7.5" x2="11" y2="7.5" stroke="currentColor" strokeWidth="1.2"/>
+                                </svg>
+                                Source
+                              </a>
+                            )}
+                            {spot.mapsUrl && (
+                              <a
+                                href={spot.mapsUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={e => e.stopPropagation()}
+                                title="Open in Google Maps"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-xs)', color: '#1a73e8', textDecoration: 'none' }}
+                              >
+                                <svg width="10" height="14" viewBox="0 0 10 14" fill="none">
+                                  <path d="M5 0C2.24 0 0 2.24 0 5c0 3.75 5 9 5 9s5-5.25 5-9c0-2.76-2.24-5-5-5z" fill="#EA4335"/>
+                                  <circle cx="5" cy="5" r="2" fill="white"/>
+                                </svg>
+                                Maps
+                              </a>
+                            )}
+                          </div>
                         )}
                       </>
                     ) : (

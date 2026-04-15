@@ -11,6 +11,7 @@ export interface SpectatorSpot {
   nearestStations: string[];
   crowdNotes: string;
   url?: string;
+  mapsUrl?: string;
 }
 
 export interface SpotPrediction extends SpectatorSpot {
