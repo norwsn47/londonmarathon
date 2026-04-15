@@ -6,10 +6,6 @@ export default {
   ],
   theme: {
     extend: {
-      fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace'],
-      },
       colors: {
         surface: '#ffffff',
         'surface-2': '#f1f5f9',

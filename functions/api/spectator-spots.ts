@@ -10,7 +10,7 @@ interface SpotRow {
   id: string; name: string; description: string;
   distance_km: number; distance_mile: number;
   lat: number; lng: number;
-  nearest_stations: string; crowd_notes: string;
+  nearest_stations: string; crowd_notes: string; url: string;
 }
 
 export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
@@ -18,7 +18,7 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
   if (request.method !== 'GET') return new Response('Method not allowed', { status: 405 });
 
   const { results } = await env.DB.prepare(
-    'SELECT id, name, description, distance_km, distance_mile, lat, lng, nearest_stations, crowd_notes FROM spectator_spots ORDER BY sort_order ASC'
+    'SELECT id, name, description, distance_km, distance_mile, lat, lng, nearest_stations, crowd_notes, url FROM spectator_spots ORDER BY sort_order ASC'
   ).all<SpotRow>();
 
   const spots = (results ?? []).map(r => ({
@@ -31,7 +31,7 @@ export const onRequest: PagesFunction<Env> = async ({ request, env }) => {
     lng: r.lng,
     nearestStations: JSON.parse(r.nearest_stations || '[]') as string[],
     crowdNotes: r.crowd_notes,
-    sources: [] as string[],
+    url: r.url ?? '',
   }));
 
   return Response.json(spots, { headers: CORS });

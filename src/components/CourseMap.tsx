@@ -408,6 +408,28 @@ export default function CourseMap({ gpxPoints, markers, spectatorPredictions = [
                             {spot.crowdNotes}
                           </div>
                         )}
+                        {spot.url && (
+                          <a
+                            href={spot.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={e => e.stopPropagation()}
+                            title="View source"
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 4,
+                              fontSize: 'var(--text-xs)', color: '#a855f7', textDecoration: 'none',
+                              borderTop: '1px solid #e2e8f0', paddingTop: 5,
+                            }}
+                          >
+                            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.2"/>
+                              <ellipse cx="6" cy="6" rx="2.2" ry="5" stroke="currentColor" strokeWidth="1.2"/>
+                              <line x1="1" y1="4.5" x2="11" y2="4.5" stroke="currentColor" strokeWidth="1.2"/>
+                              <line x1="1" y1="7.5" x2="11" y2="7.5" stroke="currentColor" strokeWidth="1.2"/>
+                            </svg>
+                            Source
+                          </a>
+                        )}
                       </>
                     ) : (
                       /* Compact layout: letter beside name */

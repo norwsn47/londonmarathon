@@ -10,7 +10,7 @@ export interface SpectatorSpot {
   lng: number;
   nearestStations: string[];
   crowdNotes: string;
-  sources: string[];
+  url?: string;
 }
 
 export interface SpotPrediction extends SpectatorSpot {
@@ -31,10 +31,7 @@ export const SPECTATOR_SPOTS: SpectatorSpot[] = [
     lng: -0.0097,
     nearestStations: ['Greenwich NR/DLR', 'Deptford Overground', 'Maze Hill NR', 'Island Gardens DLR'],
     crowdNotes: 'Very busy — arrive early. Avoid Cutty Sark DLR (queues up to 90 mins). Walk from Greenwich, Deptford or Maze Hill instead.',
-    sources: [
-      'https://www.londonmarathonevents.co.uk/london-marathon/london-marathon-spectator-guide',
-      'https://runready.substack.com/p/the-2025-london-marathon-course-guide-821',
-    ],
+    url: 'https://www.londonmarathonevents.co.uk/london-marathon/london-marathon-spectator-guide',
   },
   {
     id: 'rotherhithe',
@@ -46,10 +43,7 @@ export const SPECTATOR_SPOTS: SpectatorSpot[] = [
     lng: -0.0465,
     nearestStations: ['Canada Water (Jubilee + Overground)', 'Surrey Quays Overground', 'Rotherhithe Overground'],
     crowdNotes: 'Noticeably quieter than Cutty Sark or Tower Bridge. Canada Water busy — Bermondsey (Jubilee) is calmer. Double-view possible with short walk.',
-    sources: [
-      'https://www.londonmarathonevents.co.uk/london-marathon/london-marathon-spectator-guide',
-      'https://www.swlondoner.co.uk/life/23042025-the-best-london-marathon-viewing-spots-a-2025-spectators-guide',
-    ],
+    url: 'https://www.londonmarathonevents.co.uk/london-marathon/london-marathon-spectator-guide',
   },
   {
     id: 'tower-bridge',
@@ -61,11 +55,7 @@ export const SPECTATOR_SPOTS: SpectatorSpot[] = [
     lng: -0.0753,
     nearestStations: ['London Bridge NR/Jubilee/Northern', 'Tower Gateway DLR', 'Tower Hill Circle/District'],
     crowdNotes: 'Very busy — arrive early for a barrier spot. Avoid Tower Hill station (extremely congested). Use London Bridge and walk along Tooley Street. Double-view at miles 12.5 and 22.5.',
-    sources: [
-      'https://www.londonmarathonevents.co.uk/london-marathon/london-marathon-spectator-guide',
-      'https://runready.substack.com/p/the-2025-london-marathon-course-guide',
-      'https://www.timeout.com/london/things-to-do/where-to-watch-the-london-marathon',
-    ],
+    url: 'https://www.londonmarathonevents.co.uk/london-marathon/london-marathon-spectator-guide',
   },
   {
     id: 'canary-wharf',
@@ -77,10 +67,7 @@ export const SPECTATOR_SPOTS: SpectatorSpot[] = [
     lng: -0.0200,
     nearestStations: ['Heron Quays DLR', 'South Quay DLR', 'Canary Wharf Elizabeth/Jubilee'],
     crowdNotes: 'Moderate crowds; wide pavements. Canary Wharf station may temporarily close — use Heron Quays DLR as backup. Good for families.',
-    sources: [
-      'https://www.londonmarathonevents.co.uk/london-marathon/london-marathon-spectator-guide',
-      'https://canarywharf.com/news/everything-you-need-to-enjoy-the-london-marathon-in-canary-wharf/',
-    ],
+    url: 'https://www.londonmarathonevents.co.uk/london-marathon/london-marathon-spectator-guide',
   },
   {
     id: 'rainbow-row',
@@ -92,10 +79,7 @@ export const SPECTATOR_SPOTS: SpectatorSpot[] = [
     lng: -0.0417,
     nearestStations: ['Westferry DLR', 'Shadwell DLR/Overground', 'Poplar DLR'],
     crowdNotes: 'Avoid Limehouse station (queues up to 90 mins). Approach on foot via Cable Street from Shadwell or Westferry DLR. Official accessible viewing area.',
-    sources: [
-      'https://www.londonmarathonevents.co.uk/london-marathon/article/rainbow-row-created-for-2022-tcs-london-marathon-route',
-      'https://www.londonmarathonevents.co.uk/london-marathon/london-marathon-spectator-guide',
-    ],
+    url: 'https://www.londonmarathonevents.co.uk/london-marathon/article/rainbow-row-created-for-2022-tcs-london-marathon-route',
   },
   {
     id: 'east-smithfield',
@@ -107,10 +91,7 @@ export const SPECTATOR_SPOTS: SpectatorSpot[] = [
     lng: -0.0710,
     nearestStations: ['Tower Gateway DLR', 'Tower Hill Circle/District', 'Cannon Street NR'],
     crowdNotes: 'Avoid Tower Hill (extremely busy at mile 22–23). Use Tower Gateway DLR or Cannon Street. Double-view at ~miles 13 and 22.',
-    sources: [
-      'https://www.sportonspec.co.uk/event/athletics-london-marathon/',
-      'https://www.londonmarathonevents.co.uk/london-marathon/london-marathon-spectator-guide',
-    ],
+    url: 'https://www.sportonspec.co.uk/event/athletics-london-marathon/',
   },
   {
     id: 'embankment',
@@ -122,10 +103,7 @@ export const SPECTATOR_SPOTS: SpectatorSpot[] = [
     lng: -0.1203,
     nearestStations: ['Embankment District/Circle/Bakerloo', 'Temple District/Circle', 'Blackfriars Circle/District/NR'],
     crowdNotes: 'Westminster station is exit-only from 7 am on race day — do not plan to arrive there. Use Embankment, Temple or Blackfriars.',
-    sources: [
-      'https://www.londonmarathonevents.co.uk/london-marathon/london-marathon-spectator-guide',
-      'https://strawberrytours.com/london-marathon',
-    ],
+    url: 'https://www.londonmarathonevents.co.uk/london-marathon/london-marathon-spectator-guide',
   },
   {
     id: 'the-mall',
@@ -137,11 +115,7 @@ export const SPECTATOR_SPOTS: SpectatorSpot[] = [
     lng: -0.1343,
     nearestStations: ['St James\'s Park District/Circle', 'Charing Cross NR/Bakerloo/Northern', 'Embankment District/Circle/Bakerloo'],
     crowdNotes: 'Most densely packed point on race day — arrive very early. St James\'s Park south side slightly less hectic than The Mall north side. Mobile signal often unreliable.',
-    sources: [
-      'https://runready.substack.com/p/the-2025-london-marathon-course-guide',
-      'https://www.timeout.com/london/things-to-do/where-to-watch-the-london-marathon',
-      'https://strawberrytours.com/london-marathon',
-    ],
+    url: 'https://runready.substack.com/p/the-2025-london-marathon-course-guide',
   },
 ];
 

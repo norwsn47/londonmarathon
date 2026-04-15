@@ -6,7 +6,7 @@ interface SSRow {
   id: string; name: string; description: string;
   distance_km: number; distance_mile: number;
   lat: number; lng: number;
-  nearest_stations: string | string[]; crowd_notes: string; sort_order: number;
+  nearest_stations: string | string[]; crowd_notes: string; url: string; sort_order: number;
 }
 
 export const onRequest: PagesFunction<Env> = async ({ request, env, params }) => {
@@ -19,7 +19,7 @@ export const onRequest: PagesFunction<Env> = async ({ request, env, params }) =>
     let body: Partial<SSRow>;
     try { body = await request.json() as Partial<SSRow>; } catch { return Response.json({ error: 'Invalid JSON' }, { status: 400, headers: CORS }); }
 
-    const { name, description, distance_km, distance_mile, lat, lng, crowd_notes, sort_order } = body;
+    const { name, description, distance_km, distance_mile, lat, lng, crowd_notes, url, sort_order } = body;
     if (!name?.trim() || distance_km == null || lat == null || lng == null) {
       return Response.json({ error: 'name, distance_km, lat, lng are required' }, { status: 400, headers: CORS });
     }
@@ -33,8 +33,8 @@ export const onRequest: PagesFunction<Env> = async ({ request, env, params }) =>
 
     const result = await env.DB.prepare(
       `UPDATE spectator_spots SET name=?, description=?, distance_km=?, distance_mile=?, lat=?, lng=?,
-       nearest_stations=?, crowd_notes=?, sort_order=?, updated_at=datetime('now') WHERE id=?`
-    ).bind(name.trim(), (description ?? '').trim(), distance_km, distMile, lat, lng, stations, (crowd_notes ?? '').trim(), sort_order ?? 0, id).run();
+       nearest_stations=?, crowd_notes=?, url=?, sort_order=?, updated_at=datetime('now') WHERE id=?`
+    ).bind(name.trim(), (description ?? '').trim(), distance_km, distMile, lat, lng, stations, (crowd_notes ?? '').trim(), (url ?? '').trim(), sort_order ?? 0, id).run();
 
     if (result.meta.changes === 0) return Response.json({ error: 'Not found' }, { status: 404, headers: CORS });
     const row = await env.DB.prepare('SELECT * FROM spectator_spots WHERE id = ?').bind(id).first<SSRow>();
