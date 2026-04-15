@@ -610,16 +610,15 @@ function importMarkersCSV(input) {
       }))
       .filter(r => r.title && !isNaN(r.distance_km) && !isNaN(r.lat) && !isNaN(r.lng));
     if (!parsed.length) { toast('No valid rows found — check required columns', 'error'); return; }
-    const existingIds = new Set(markers.map(m => m.id));
-    const updates = parsed.filter(r => r.id && existingIds.has(r.id)).length;
-    const creates = parsed.length - updates;
     window._pendingImport = { type: 'markers', rows: parsed };
     openModal(`
       <button class="close-btn" onclick="closeModal()">×</button>
       <h2>Import Official Markers</h2>
-      <p style="margin-bottom:16px;color:#64748b;font-size:13px">
-        <strong>${parsed.length}</strong> valid rows found —
-        <strong>${creates}</strong> new, <strong>${updates}</strong> update${updates !== 1 ? 's' : ''}.
+      <p style="margin-bottom:8px;color:#64748b;font-size:13px">
+        <strong>${parsed.length}</strong> row${parsed.length !== 1 ? 's' : ''} found in CSV.
+      </p>
+      <p style="margin-bottom:16px;padding:8px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#991b1b;font-size:13px">
+        ⚠️ This will <strong>delete all ${markers.length} existing marker${markers.length !== 1 ? 's' : ''}</strong> and replace them with the CSV contents.
       </p>
       <div class="table-wrap" style="max-height:220px;overflow-y:auto;margin-bottom:16px">
         <table>
@@ -637,7 +636,7 @@ function importMarkersCSV(input) {
       </div>
       <div class="modal-actions">
         <button class="cancel-btn" onclick="closeModal()">Cancel</button>
-        <button class="save-btn" id="import-confirm-btn" onclick="confirmImport()">Import ${parsed.length} row${parsed.length !== 1 ? 's' : ''}</button>
+        <button class="save-btn" id="import-confirm-btn" style="background:#dc2626" onclick="confirmImport()">Replace with ${parsed.length} row${parsed.length !== 1 ? 's' : ''}</button>
       </div>`);
   };
   reader.readAsText(file);
@@ -696,16 +695,15 @@ function importSpotsCSV(input) {
       }))
       .filter(r => r.name && !isNaN(r.distance_km) && !isNaN(r.lat) && !isNaN(r.lng));
     if (!parsed.length) { toast('No valid rows found — check required columns', 'error'); return; }
-    const existingIds = new Set(spots.map(s => s.id));
-    const updates = parsed.filter(r => r.id && existingIds.has(r.id)).length;
-    const creates = parsed.length - updates;
     window._pendingImport = { type: 'spots', rows: parsed };
     openModal(`
       <button class="close-btn" onclick="closeModal()">×</button>
       <h2>Import Spectator Spots</h2>
-      <p style="margin-bottom:16px;color:#64748b;font-size:13px">
-        <strong>${parsed.length}</strong> valid rows found —
-        <strong>${creates}</strong> new, <strong>${updates}</strong> update${updates !== 1 ? 's' : ''}.
+      <p style="margin-bottom:8px;color:#64748b;font-size:13px">
+        <strong>${parsed.length}</strong> row${parsed.length !== 1 ? 's' : ''} found in CSV.
+      </p>
+      <p style="margin-bottom:16px;padding:8px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#991b1b;font-size:13px">
+        ⚠️ This will <strong>delete all ${spots.length} existing spot${spots.length !== 1 ? 's' : ''}</strong> and replace them with the CSV contents.
       </p>
       <div class="table-wrap" style="max-height:220px;overflow-y:auto;margin-bottom:16px">
         <table>
@@ -723,7 +721,7 @@ function importSpotsCSV(input) {
       </div>
       <div class="modal-actions">
         <button class="cancel-btn" onclick="closeModal()">Cancel</button>
-        <button class="save-btn" id="import-confirm-btn" onclick="confirmImport()">Import ${parsed.length} row${parsed.length !== 1 ? 's' : ''}</button>
+        <button class="save-btn" id="import-confirm-btn" style="background:#dc2626" onclick="confirmImport()">Replace with ${parsed.length} row${parsed.length !== 1 ? 's' : ''}</button>
       </div>`);
   };
   reader.readAsText(file);
@@ -734,29 +732,32 @@ async function confirmImport() {
   const pending = window._pendingImport;
   if (!pending) return;
   const btn = document.getElementById('import-confirm-btn');
-  btn.disabled = true; btn.textContent = 'Importing…';
+  btn.disabled = true;
 
   const isMarkers = pending.type === 'markers';
-  const existingIds = new Set(isMarkers ? markers.map(m => m.id) : spots.map(s => s.id));
+  const existing = isMarkers ? [...markers] : [...spots];
   const baseUrl = isMarkers ? '/api/admin/official-markers' : '/api/admin/spectator-spots';
   let ok = 0, err = 0;
 
+  // Step 1: delete all existing records
+  btn.textContent = `Deleting ${existing.length} existing…`;
+  for (const item of existing) {
+    try { await apiFetch(`${baseUrl}/${item.id}`, { method: 'DELETE' }); }
+    catch { err++; }
+  }
+
+  // Step 2: create all rows from CSV
+  btn.textContent = `Creating ${pending.rows.length} rows…`;
   for (const row of pending.rows) {
-    try {
-      if (row.id && existingIds.has(row.id)) {
-        await apiFetch(`${baseUrl}/${row.id}`, { method: 'PUT', body: JSON.stringify(row) });
-      } else {
-        await apiFetch(baseUrl, { method: 'POST', body: JSON.stringify(row) });
-      }
-      ok++;
-    } catch { err++; }
+    try { await apiFetch(baseUrl, { method: 'POST', body: JSON.stringify(row) }); ok++; }
+    catch { err++; }
   }
 
   window._pendingImport = null;
   closeModal();
   if (isMarkers) { await loadMarkers(); } else { await loadSpots(); }
   toast(
-    `Imported ${ok} ${isMarkers ? 'marker' : 'spot'}${ok !== 1 ? 's' : ''}` +
+    `Replaced with ${ok} ${isMarkers ? 'marker' : 'spot'}${ok !== 1 ? 's' : ''}` +
     (err ? ` · ${err} failed` : ''),
     err && ok === 0 ? 'error' : 'success'
   );
