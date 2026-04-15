@@ -48,17 +48,18 @@ const spectatorIcon = L.divIcon({
   popupAnchor: [0, -20],
 });
 
-function createLetterIcon(letter: string, glowing = false): L.DivIcon {
+function createLetterIcon(letter: string, glowing = false, greyed = false): L.DivIcon {
   const size = glowing ? 28 : 20;
   const half = size / 2;
   const lineHeight = size - 4;
+  const bg = greyed ? '#94a3b8' : '#a855f7';
   const shadow = glowing
     ? '0 0 0 5px rgba(168,85,247,0.4),0 0 18px 6px rgba(168,85,247,0.55)'
     : '0 1px 4px rgba(0,0,0,0.4)';
   const fontSize = glowing ? 'var(--text-sm)' : 'var(--text-xs)';
   return L.divIcon({
     className: '',
-    html: `<div style="width:${size}px;height:${size}px;background:#a855f7;border:2px solid #fff;border-radius:50%;box-shadow:${shadow};color:white;font-size:${fontSize};font-weight:700;font-family:system-ui,sans-serif;text-align:center;line-height:${lineHeight}px">${letter}</div>`,
+    html: `<div style="width:${size}px;height:${size}px;background:${bg};border:2px solid #fff;border-radius:50%;box-shadow:${shadow};color:white;font-size:${fontSize};font-weight:700;font-family:system-ui,sans-serif;text-align:center;line-height:${lineHeight}px">${letter}</div>`,
     iconSize: [size, size],
     iconAnchor: [half, half],
     popupAnchor: [0, -(half + 2)],
@@ -109,6 +110,10 @@ export default function CourseMap({ gpxPoints, markers, spectatorPredictions = [
   const [zoom, setZoom] = useState(13);
   const [hoveredSpotId, setHoveredSpotId] = useState<string | null>(null);
   const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
+  const [includedSpotIds, setIncludedSpotIds] = useState<Set<string>>(new Set());
+
+  // Initialise all spots as included when they first load (preserves user changes thereafter)
+  const includedInitRef = useRef(false);
 
   // Spots sorted by course distance — defines numbering 1–N
   const sortedSpots = useMemo(
@@ -156,7 +161,15 @@ export default function CourseMap({ gpxPoints, markers, spectatorPredictions = [
     containerRef.current?.classList.toggle('zoomed-out', zoom < ZOOM_THRESHOLD);
   }, [zoom]);
 
-  // Swap icons: zoomed-out → lettered (glow on hover/select); zoomed-in → binoculars
+  // Initialise all spots as included on first load; new spots added later are also included
+  useEffect(() => {
+    if (!includedInitRef.current && sortedSpots.length > 0) {
+      includedInitRef.current = true;
+      setIncludedSpotIds(new Set(sortedSpots.map(s => s.id)));
+    }
+  }, [sortedSpots]);
+
+  // Swap icons: zoomed-out → lettered (glow on hover/select, grey when excluded); zoomed-in → binoculars
   useEffect(() => {
     if (zoom < ZOOM_THRESHOLD) {
       sortedSpots.forEach((spot, i) => {
@@ -164,14 +177,15 @@ export default function CourseMap({ gpxPoints, markers, spectatorPredictions = [
         if (!layer) return;
         const letter = String.fromCharCode(65 + i);
         const active = hoveredSpotId === spot.id || selectedSpotId === spot.id;
-        layer.setIcon(active ? createLetterIcon(letter, true) : createLetterIcon(letter));
+        const greyed = !includedSpotIds.has(spot.id);
+        layer.setIcon(createLetterIcon(letter, active, greyed));
       });
     } else {
       for (const [, layer] of spectatorLayersRef.current) {
         layer.setIcon(spectatorIcon);
       }
     }
-  }, [zoom, sortedSpots, hoveredSpotId, selectedSpotId]);
+  }, [zoom, sortedSpots, hoveredSpotId, selectedSpotId, includedSpotIds]);
 
   // Draw GPX route
   useEffect(() => {
@@ -270,52 +284,22 @@ export default function CourseMap({ gpxPoints, markers, spectatorPredictions = [
     <div ref={wrapperRef} className="relative w-full h-full">
       <div ref={containerRef} style={{ height: '100%' }} />
 
-      {/* Zoomed-out: card row pinned to bottom, cards expand upward on hover/click */}
+      {/* Zoomed-out: card row pinned to bottom — uniform tile sizes, no horizontal scroll */}
       {zoom < ZOOM_THRESHOLD && sortedSpots.length > 0 && (
         <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 900, pointerEvents: 'none' }}>
-          <div style={{ position: 'relative', padding: '0 8px 8px 8px' }}>
-
-            {/* Right-fade gradient + scroll arrow — anchored to bottom */}
-            {sortedSpots.length > 4 && (
-              <>
-                <div style={{
-                  position: 'absolute', right: 8, bottom: 8, width: 72, height: 60,
-                  background: 'linear-gradient(to right, transparent, rgba(241,245,249,0.95))',
-                  pointerEvents: 'none', zIndex: 2,
-                }} />
-                <button
-                  onClick={() => cardRowRef.current?.scrollBy({ left: 220, behavior: 'smooth' })}
-                  style={{
-                    position: 'absolute', right: 14, bottom: 16,
-                    zIndex: 3, width: 32, height: 32, borderRadius: '50%',
-                    background: 'white', border: '1px solid #e2e8f0',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: '#7c3aed', pointerEvents: 'auto',
-                  }}
-                  title="Scroll right"
-                >
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                    <path d="M5 2l5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-              </>
-            )}
-
-            {/* Scrollable cards — align-items: flex-end makes cards grow upward */}
+          <div style={{ padding: '0 8px 8px 8px' }}>
             <div
               ref={cardRowRef}
               className="spectator-key-panel"
               style={{
-                display: 'flex', flexDirection: 'row', alignItems: 'flex-end', gap: 6,
-                overflowX: 'auto', scrollbarWidth: 'none',
-                paddingRight: sortedSpots.length > 4 ? 52 : 0,
+                display: 'flex', flexDirection: 'row', alignItems: 'stretch', gap: 6,
                 pointerEvents: 'none',
               }}
             >
               {sortedSpots.map((spot, i) => {
                 const isActive = hoveredSpotId === spot.id || selectedSpotId === spot.id;
                 const isSelected = selectedSpotId === spot.id;
+                const isIncluded = includedSpotIds.has(spot.id);
                 const letter = String.fromCharCode(65 + i);
                 const distLabel = displayUnit === 'mi' ? `Mi ${spot.distanceMile}` : `${spot.distanceKm} km`;
                 return (
@@ -328,59 +312,92 @@ export default function CourseMap({ gpxPoints, markers, spectatorPredictions = [
                     style={{
                       position: 'relative',
                       pointerEvents: 'auto',
-                      display: 'flex', flexDirection: 'column', gap: 5,
+                      flex: 1, minWidth: 0,
+                      display: 'flex', flexDirection: 'column', gap: isActive ? 5 : 0,
+                      justifyContent: isActive ? 'flex-start' : 'flex-end',
                       background: isSelected ? 'rgba(245,240,255,0.98)' : isActive ? 'rgba(250,247,255,0.97)' : 'rgba(255,255,255,0.93)',
                       border: isSelected ? '1.5px solid #a855f7' : isActive ? '1px solid #c084fc' : '1px solid #e2e8f0',
                       borderRadius: 10,
-                      padding: isActive ? '8px 10px 8px 8px' : '6px 10px 6px 7px',
+                      padding: isActive ? '8px 8px 8px 8px' : '6px 7px',
                       boxShadow: isSelected ? '0 4px 16px rgba(168,85,247,0.28)' : isActive ? '0 2px 10px rgba(168,85,247,0.18)' : '0 1px 3px rgba(0,0,0,0.08)',
-                      width: isActive ? 264 : 176, flexShrink: 0,
                       cursor: 'pointer',
-                      transition: 'border-color 0.18s, box-shadow 0.18s, background 0.18s, padding 0.18s, width 0.18s',
+                      overflowY: isActive ? 'auto' : 'hidden',
+                      transition: 'border-color 0.18s, box-shadow 0.18s, background 0.18s',
                     }}
                   >
-                    {/* Collapse icon — top-right when expanded */}
+                    {/* Top-right controls — only when expanded */}
                     {isActive && (
-                      <button
-                        onClick={e => { e.stopPropagation(); setSelectedSpotId(null); setHoveredSpotId(null); }}
-                        style={{
-                          position: 'absolute', top: 6, right: 6,
-                          width: 18, height: 18, borderRadius: '50%',
-                          background: 'rgba(168,85,247,0.12)', border: 'none',
-                          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          color: '#a855f7', padding: 0,
-                        }}
-                        title="Close"
-                      >
-                        <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
-                          <path d="M1.5 1.5l6 6M7.5 1.5l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                        </svg>
-                      </button>
+                      <div style={{ position: 'absolute', top: 6, right: 6, display: 'flex', gap: 4 }}>
+                        {/* Include-in-plan toggle */}
+                        <button
+                          onClick={e => {
+                            e.stopPropagation();
+                            setIncludedSpotIds(prev => {
+                              const next = new Set(prev);
+                              isIncluded ? next.delete(spot.id) : next.add(spot.id);
+                              return next;
+                            });
+                          }}
+                          title={isIncluded ? 'Remove from plan' : 'Add to plan'}
+                          style={{
+                            width: 18, height: 18, borderRadius: '50%',
+                            background: isIncluded ? 'rgba(22,163,74,0.12)' : 'rgba(148,163,184,0.12)',
+                            border: `1px solid ${isIncluded ? 'rgba(22,163,74,0.45)' : 'rgba(148,163,184,0.45)'}`,
+                            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            color: isIncluded ? '#16a34a' : '#94a3b8', padding: 0,
+                          }}
+                        >
+                          {isIncluded ? (
+                            <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+                              <path d="M1.5 4.5l2.5 2.5L7.5 2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          ) : (
+                            <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+                              <path d="M4.5 1.5v6M1.5 4.5h6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+                            </svg>
+                          )}
+                        </button>
+                        {/* Close */}
+                        <button
+                          onClick={e => { e.stopPropagation(); setSelectedSpotId(null); setHoveredSpotId(null); }}
+                          title="Close"
+                          style={{
+                            width: 18, height: 18, borderRadius: '50%',
+                            background: 'rgba(168,85,247,0.12)', border: 'none',
+                            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            color: '#a855f7', padding: 0,
+                          }}
+                        >
+                          <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+                            <path d="M1.5 1.5l6 6M7.5 1.5l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                          </svg>
+                        </button>
+                      </div>
                     )}
 
                     {isActive ? (
-                      /* Expanded layout: letter at top, then name/dist below */
+                      /* Expanded layout */
                       <>
                         <span style={{
                           width: 24, height: 24, borderRadius: '50%',
-                          background: '#9333ea',
+                          background: isIncluded ? '#9333ea' : '#94a3b8',
                           color: 'white', fontSize: 'var(--text-sm)', fontWeight: 700,
                           fontFamily: 'system-ui,sans-serif',
                           textAlign: 'center', lineHeight: '24px', flexShrink: 0,
                         }}>{letter}</span>
                         <div>
-                          <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: '#1e293b', paddingRight: 20 }}>
+                          <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: '#1e293b', paddingRight: 46 }}>
                             {spot.name}
                           </div>
                           <div style={{ display: 'flex', gap: 6, marginTop: 1 }}>
-                            <span style={{ fontSize: 'var(--text-xs)', color: '#94a3b8', letterSpacing: '0.02em' }}>{distLabel}</span>
+                            <span style={{ fontSize: 'var(--text-xs)', color: '#94a3b8' }}>{distLabel}</span>
                             {spot.clockTime && (
-                              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#ea580c' }}>{spot.clockTime}</span>
+                              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: isIncluded ? '#ea580c' : '#94a3b8' }}>{spot.clockTime}</span>
                             )}
                           </div>
                         </div>
                         {spot.description && (
-                          <div style={{ fontSize: 'var(--text-xs)', color: '#64748b', lineHeight: 1.45, letterSpacing: '0.02em' }}>
+                          <div style={{ fontSize: 'var(--text-xs)', color: '#64748b', lineHeight: 1.45 }}>
                             {spot.description}
                           </div>
                         )}
@@ -391,34 +408,21 @@ export default function CourseMap({ gpxPoints, markers, spectatorPredictions = [
                             </div>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
                               {spot.nearestStations.map(s => (
-                                <span key={s} style={{
-                                  background: '#f1f5f9', border: '1px solid #e2e8f0',
-                                  borderRadius: 5, padding: '1px 6px',
-                                  fontSize: 'var(--text-xs)', color: '#334155', letterSpacing: '0.02em',
-                                }}>{s}</span>
+                                <span key={s} style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 5, padding: '1px 5px', fontSize: 'var(--text-xs)', color: '#334155' }}>{s}</span>
                               ))}
                             </div>
                           </div>
                         )}
                         {spot.crowdNotes && (
-                          <div style={{
-                            borderTop: '1px solid #e2e8f0', paddingTop: 5,
-                            fontSize: 'var(--text-xs)', color: '#64748b', lineHeight: 1.45, letterSpacing: '0.02em',
-                          }}>
+                          <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 5, fontSize: 'var(--text-xs)', color: '#64748b', lineHeight: 1.45 }}>
                             {spot.crowdNotes}
                           </div>
                         )}
                         {(spot.url || spot.mapsUrl) && (
                           <div style={{ display: 'flex', gap: 8, borderTop: '1px solid #e2e8f0', paddingTop: 5 }}>
                             {spot.url && (
-                              <a
-                                href={spot.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={e => e.stopPropagation()}
-                                title="View source"
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-xs)', color: '#a855f7', textDecoration: 'none' }}
-                              >
+                              <a href={spot.url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} title="View source"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-xs)', color: '#a855f7', textDecoration: 'none' }}>
                                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                                   <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.2"/>
                                   <ellipse cx="6" cy="6" rx="2.2" ry="5" stroke="currentColor" strokeWidth="1.2"/>
@@ -429,14 +433,8 @@ export default function CourseMap({ gpxPoints, markers, spectatorPredictions = [
                               </a>
                             )}
                             {spot.mapsUrl && (
-                              <a
-                                href={spot.mapsUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={e => e.stopPropagation()}
-                                title="Open in Google Maps"
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-xs)', color: '#1a73e8', textDecoration: 'none' }}
-                              >
+                              <a href={spot.mapsUrl} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} title="Open in Google Maps"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-xs)', color: '#1a73e8', textDecoration: 'none' }}>
                                 <svg width="10" height="14" viewBox="0 0 10 14" fill="none">
                                   <path d="M5 0C2.24 0 0 2.24 0 5c0 3.75 5 9 5 9s5-5.25 5-9c0-2.76-2.24-5-5-5z" fill="#EA4335"/>
                                   <circle cx="5" cy="5" r="2" fill="white"/>
@@ -448,23 +446,23 @@ export default function CourseMap({ gpxPoints, markers, spectatorPredictions = [
                         )}
                       </>
                     ) : (
-                      /* Compact layout: letter beside name */
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                      /* Compact layout: letter + name (wrapping), content anchored to bottom via justifyContent: flex-end on parent */
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
                         <span style={{
                           width: 20, height: 20, borderRadius: '50%',
-                          background: '#a855f7',
+                          background: isIncluded ? '#a855f7' : '#94a3b8',
                           color: 'white', fontSize: 'var(--text-xs)', fontWeight: 700,
                           fontFamily: 'system-ui,sans-serif',
                           textAlign: 'center', lineHeight: '20px', flexShrink: 0,
                         }}>{letter}</span>
-                        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                          <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: isIncluded ? '#1e293b' : '#94a3b8', lineHeight: 1.3 }}>
                             {spot.name}
                           </div>
-                          <div style={{ display: 'flex', gap: 6, marginTop: 1 }}>
-                            <span style={{ fontSize: 'var(--text-xs)', color: '#94a3b8', letterSpacing: '0.02em' }}>{distLabel}</span>
+                          <div style={{ display: 'flex', gap: 4, marginTop: 1, flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: 'var(--text-xs)', color: isIncluded ? '#94a3b8' : '#cbd5e1' }}>{distLabel}</span>
                             {spot.clockTime && (
-                              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: '#ea580c' }}>{spot.clockTime}</span>
+                              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: isIncluded ? '#ea580c' : '#cbd5e1' }}>{spot.clockTime}</span>
                             )}
                           </div>
                         </div>
