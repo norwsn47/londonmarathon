@@ -33,11 +33,15 @@ const UNIT = 'km' as const;
 
 // Tile dimension constants
 const TILE_COLLAPSED_W = 160;
-const TILE_EXPANDED_W  = 320; // mobile expanded (full-width tiles)
+const TILE_EXPANDED_W  = 320; // desktop / fallback expanded width
 const TILE_COLLAPSED_H = 80;
 // Desktop expanded tiles: width is uncapped (fit-content so the tile grows as
 // wide as needed to show all text without clipping), height locked at 30vh.
 const DESKTOP_EXPANDED_H_CSS = '30vh';
+// Mobile carousel snap: peek amount on each side so adjacent tiles are visible.
+// Tile width = viewport width − 2×MOBILE_SNAP_PEEK; gap between tiles = MOBILE_SNAP_GAP.
+const MOBILE_SNAP_PEEK = 44;
+const MOBILE_SNAP_GAP  = 10;
 
 function secToHMM(sec: number): string {
   return `${Math.floor(sec / 3600)}:${String(Math.floor((sec % 3600) / 60)).padStart(2, '0')}`;
@@ -90,17 +94,24 @@ export default function App() {
   const includedInitRef = useRef(false);
   const cardRowRef = useRef<HTMLDivElement>(null);
 
-  // ── Mobile detection & tile panel height ──────────────────────────────────
+  // ── Mobile detection, tile panel height, and carousel tile width ─────────
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
-  // Height in px of the bottom tile panel (half the space below the header)
   const [mobilePanelH, setMobilePanelH] = useState(0);
+  // Width of each carousel tile: viewport minus peek on both sides.
+  // Initialised eagerly so the first render is already correct.
+  const [mobileTileW, setMobileTileW] = useState(() =>
+    window.innerWidth < 768 ? window.innerWidth - 2 * MOBILE_SNAP_PEEK : TILE_EXPANDED_W,
+  );
 
   useEffect(() => {
     const HEADER_H = 56;
     function update() {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
-      if (mobile) setMobilePanelH(Math.floor((window.innerHeight - HEADER_H) / 2));
+      if (mobile) {
+        setMobilePanelH(Math.floor((window.innerHeight - HEADER_H) / 2));
+        setMobileTileW(window.innerWidth - 2 * MOBILE_SNAP_PEEK);
+      }
     }
     update();
     window.addEventListener('resize', update);
@@ -246,13 +257,13 @@ export default function App() {
       const tileStyle: React.CSSProperties = {
         position: 'relative',
         pointerEvents: 'auto',
-        // Desktop expanded: no maxWidth cap — tile grows as wide as content needs
-        // so text never wraps into more lines than fit within the locked 30vh height.
-        // Mobile expanded: fixed TILE_EXPANDED_W width, fill panel height.
+        // Desktop expanded: fit-content (no max cap) so text never clips within 30vh.
+        // Mobile expanded: carousel tile width (viewport − 2×peek) for snap-to-centre.
         // Collapsed (desktop only): fixed collapsed dimensions.
-        width:    !mobile && isExpanded ? 'fit-content' : isExpanded ? TILE_EXPANDED_W : TILE_COLLAPSED_W,
-        minWidth: !mobile && isExpanded ? TILE_COLLAPSED_W : undefined,
-        height:   isExpanded ? (mobile ? expandedH : DESKTOP_EXPANDED_H_CSS) : TILE_COLLAPSED_H,
+        width:          !mobile && isExpanded ? 'fit-content' : isExpanded ? mobileTileW : TILE_COLLAPSED_W,
+        minWidth:       !mobile && isExpanded ? TILE_COLLAPSED_W : undefined,
+        height:         isExpanded ? (mobile ? expandedH : DESKTOP_EXPANDED_H_CSS) : TILE_COLLAPSED_H,
+        scrollSnapAlign: mobile ? 'center' : undefined,
         flexShrink: 0,
         display: 'flex',
         flexDirection: 'column',
@@ -740,71 +751,53 @@ export default function App() {
             borderTop: '1px solid #e2e8f0',
             position: 'relative',
           }}>
-            {/* Left-fade + left scroll arrow */}
+            {/* Left arrow — sits in the left peek zone */}
             {sortedSpots.length > 1 && (
-              <>
-                {canScrollLeft && (
-                  <div style={{
-                    position: 'absolute', left: 0, top: 0, bottom: 0, width: 48,
-                    background: 'linear-gradient(to left, transparent, rgba(255,255,255,0.9))',
-                    pointerEvents: 'none', zIndex: 2,
-                  }} />
-                )}
-                <button
-                  onClick={() => cardRowRef.current?.scrollBy({ left: -(TILE_EXPANDED_W + 6), behavior: 'smooth' })}
-                  style={{
-                    position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)',
-                    zIndex: 3, width: 36, height: 36, borderRadius: '50%',
-                    background: 'white', border: '1px solid #e2e8f0',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-                    cursor: canScrollLeft ? 'pointer' : 'default',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: canScrollLeft ? '#7c3aed' : '#cbd5e1',
-                    opacity: canScrollLeft ? 1 : 0.35,
-                    pointerEvents: canScrollLeft ? 'auto' : 'none',
-                  }}
-                  title="Scroll left"
-                >
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                    <path d="M9 2l-5 5 5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-              </>
+              <button
+                onClick={() => cardRowRef.current?.scrollBy({ left: -(mobileTileW + MOBILE_SNAP_GAP), behavior: 'smooth' })}
+                style={{
+                  position: 'absolute', left: 4, top: '50%', transform: 'translateY(-50%)',
+                  zIndex: 3, width: 36, height: 36, borderRadius: '50%',
+                  background: 'white', border: '1px solid #e2e8f0',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+                  cursor: canScrollLeft ? 'pointer' : 'default',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: canScrollLeft ? '#7c3aed' : '#cbd5e1',
+                  opacity: canScrollLeft ? 1 : 0.35,
+                  pointerEvents: canScrollLeft ? 'auto' : 'none',
+                }}
+                title="Previous"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M9 2l-5 5 5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
             )}
 
-            {/* Right-fade + right scroll arrow */}
+            {/* Right arrow — sits in the right peek zone */}
             {sortedSpots.length > 1 && (
-              <>
-                {canScrollRight && (
-                  <div style={{
-                    position: 'absolute', right: 0, top: 0, bottom: 0, width: 48,
-                    background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.9))',
-                    pointerEvents: 'none', zIndex: 2,
-                  }} />
-                )}
-                <button
-                  onClick={() => cardRowRef.current?.scrollBy({ left: TILE_EXPANDED_W + 6, behavior: 'smooth' })}
-                  style={{
-                    position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
-                    zIndex: 3, width: 36, height: 36, borderRadius: '50%',
-                    background: 'white', border: '1px solid #e2e8f0',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-                    cursor: canScrollRight ? 'pointer' : 'default',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: canScrollRight ? '#7c3aed' : '#cbd5e1',
-                    opacity: canScrollRight ? 1 : 0.35,
-                    pointerEvents: canScrollRight ? 'auto' : 'none',
-                  }}
-                  title="Scroll right"
-                >
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                    <path d="M5 2l5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-              </>
+              <button
+                onClick={() => cardRowRef.current?.scrollBy({ left: mobileTileW + MOBILE_SNAP_GAP, behavior: 'smooth' })}
+                style={{
+                  position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)',
+                  zIndex: 3, width: 36, height: 36, borderRadius: '50%',
+                  background: 'white', border: '1px solid #e2e8f0',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+                  cursor: canScrollRight ? 'pointer' : 'default',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: canScrollRight ? '#7c3aed' : '#cbd5e1',
+                  opacity: canScrollRight ? 1 : 0.35,
+                  pointerEvents: canScrollRight ? 'auto' : 'none',
+                }}
+                title="Next"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M5 2l5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
             )}
 
-            {/* Scrollable tile row — horizontal only, tiles align to bottom */}
+            {/* Scrollable tile row — snap-to-centre carousel */}
             <div
               ref={cardRowRef}
               className="spectator-key-panel"
@@ -816,11 +809,16 @@ export default function App() {
                 display: 'flex',
                 flexDirection: 'row',
                 alignItems: 'flex-end',
-                gap: 6,
-                padding: '8px',
-                paddingLeft: sortedSpots.length > 1 ? 52 : 8,
-                paddingRight: sortedSpots.length > 1 ? 52 : 8,
+                gap: MOBILE_SNAP_GAP,
+                // Equal padding = peek amount: first & last tiles snap-centre correctly
+                paddingLeft: MOBILE_SNAP_PEEK,
+                paddingRight: MOBILE_SNAP_PEEK,
+                paddingTop: 8,
+                paddingBottom: 8,
                 boxSizing: 'border-box',
+                scrollSnapType: 'x mandatory',
+                // Prevent snap-scroll from propagating to the page
+                overscrollBehaviorX: 'contain',
               }}
             >
               {renderTileRow(true)}
