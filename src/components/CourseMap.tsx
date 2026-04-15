@@ -28,26 +28,6 @@ function createOfficialIcon(title: string): L.DivIcon {
   });
 }
 
-const spectatorIcon = L.divIcon({
-  className: '',
-  html: `<div style="filter:drop-shadow(0 1px 4px rgba(0,0,0,0.4))">
-    <svg width="26" height="18" viewBox="0 0 26 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="1" y="1" width="8" height="8" rx="2" fill="#a855f7" stroke="white" stroke-width="1.3"/>
-      <rect x="17" y="1" width="8" height="8" rx="2" fill="#a855f7" stroke="white" stroke-width="1.3"/>
-      <rect x="8.6" y="3" width="8.8" height="4.5" fill="#a855f7"/>
-      <line x1="9" y1="3" x2="17" y2="3" stroke="white" stroke-width="1.3"/>
-      <line x1="9" y1="7.5" x2="17" y2="7.5" stroke="white" stroke-width="1.3"/>
-      <circle cx="5" cy="13.5" r="4" fill="#a855f7" stroke="white" stroke-width="1.5"/>
-      <circle cx="21" cy="13.5" r="4" fill="#a855f7" stroke="white" stroke-width="1.5"/>
-      <circle cx="3.8" cy="12.3" r="1.4" fill="white" opacity="0.3"/>
-      <circle cx="19.8" cy="12.3" r="1.4" fill="white" opacity="0.3"/>
-    </svg>
-  </div>`,
-  iconSize: [26, 18],
-  iconAnchor: [13, 18],
-  popupAnchor: [0, -20],
-});
-
 /**
  * Letter marker icon.
  * - greyed: excluded from plan → slate colour
@@ -181,25 +161,19 @@ export default function CourseMap({
     containerRef.current?.classList.toggle('zoomed-out', zoom < ZOOM_THRESHOLD);
   }, [zoom]);
 
-  // Swap icons: zoomed-out → lettered (glow on hover/select, grey when excluded,
-  // clock time shown on map when included); zoomed-in → binoculars
+  // Update letter icons whenever hover/select/include state changes.
+  // Letter icons are used at all zoom levels — no binocular switching.
   useEffect(() => {
-    if (zoom < ZOOM_THRESHOLD) {
-      sortedSpots.forEach((spot, i) => {
-        const layer = spectatorLayersRef.current.get(spot.id);
-        if (!layer) return;
-        const letter = String.fromCharCode(65 + i);
-        const active = hoveredSpotId === spot.id || selectedSpotId === spot.id;
-        const included = includedSpotIds.has(spot.id);
-        const clockTime = included ? (spot.clockTime ?? undefined) : undefined;
-        layer.setIcon(createLetterIcon(letter, active, !included, clockTime));
-      });
-    } else {
-      for (const [, layer] of spectatorLayersRef.current) {
-        layer.setIcon(spectatorIcon);
-      }
-    }
-  }, [zoom, sortedSpots, hoveredSpotId, selectedSpotId, includedSpotIds]);
+    sortedSpots.forEach((spot, i) => {
+      const layer = spectatorLayersRef.current.get(spot.id);
+      if (!layer) return;
+      const letter = String.fromCharCode(65 + i);
+      const active = hoveredSpotId === spot.id || selectedSpotId === spot.id;
+      const included = includedSpotIds.has(spot.id);
+      const clockTime = included ? (spot.clockTime ?? undefined) : undefined;
+      layer.setIcon(createLetterIcon(letter, active, !included, clockTime));
+    });
+  }, [sortedSpots, hoveredSpotId, selectedSpotId, includedSpotIds]);
 
   // Draw GPX route
   useEffect(() => {
@@ -274,11 +248,11 @@ export default function CourseMap({
       const existing = spectatorLayersRef.current.get(spot.id);
 
       if (existing) {
-        existing.setTooltipContent(`${letter} · ${spot.name} · ${displayUnit === 'mi' ? `Mile ${spot.distanceMile}` : `${spot.distanceKm} km`}`);
+        existing.setTooltipContent(`${spot.name} · ${displayUnit === 'mi' ? `Mile ${spot.distanceMile}` : `${spot.distanceKm} km`}`);
       } else {
         const distLabel = displayUnit === 'mi' ? `Mile ${spot.distanceMile}` : `${spot.distanceKm} km`;
-        const layer = L.marker([spot.lat, spot.lng], { icon: spectatorIcon })
-          .bindTooltip(`${letter} · ${spot.name} · ${distLabel}`, {
+        const layer = L.marker([spot.lat, spot.lng], { icon: createLetterIcon(letter) })
+          .bindTooltip(`${spot.name} · ${distLabel}`, {
             permanent: true, direction: 'right', className: 'spectator-label', offset: [8, 0],
           })
           .addTo(map);
@@ -294,22 +268,6 @@ export default function CourseMap({
   return (
     <div ref={wrapperRef} className="relative w-full h-full">
       <div ref={containerRef} style={{ height: '100%' }} />
-
-      {/* Zoomed-in: small legend pill */}
-      {zoom >= ZOOM_THRESHOLD && (
-        <div style={{ position: 'absolute', bottom: 28, left: 8, zIndex: 900, pointerEvents: 'none' }}>
-          <span style={{
-            display: 'inline-flex', alignItems: 'center', gap: 5,
-            background: 'rgba(255,255,255,0.92)', border: '1px solid #e2e8f0',
-            borderRadius: 6, padding: '3px 8px',
-            fontSize: 'var(--text-xs)', fontWeight: 600, color: '#7c3aed', letterSpacing: '0.02em',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-          }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#a855f7', flexShrink: 0 }} />
-            Viewing spots
-          </span>
-        </div>
-      )}
     </div>
   );
 }

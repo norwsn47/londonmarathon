@@ -32,10 +32,14 @@ const DEFAULT_TARGET = 4 * 3600;
 const UNIT = 'km' as const;
 
 // Tile dimension constants
-const TILE_COLLAPSED_W = 130;
-const TILE_EXPANDED_W  = 260; // exactly 2× collapsed
-const TILE_COLLAPSED_H = 68;
-const DESKTOP_EXPANDED_H = 240;
+// COLLAPSED_W sized so even long names (e.g. "East Smithfield — Tower of London") wrap
+// to at most 2 lines within the tile. COLLAPSED_H is tall enough for a 2-line title.
+// DESKTOP_EXPANDED_H is sized to fully contain the tile with the most content
+// (description + stations + crowd notes + links) without clipping or internal scroll.
+const TILE_COLLAPSED_W   = 160;
+const TILE_EXPANDED_W    = 320; // exactly 2× collapsed
+const TILE_COLLAPSED_H   = 80;
+const DESKTOP_EXPANDED_H = 400;
 
 function secToHMM(sec: number): string {
   return `${Math.floor(sec / 3600)}:${String(Math.floor((sec % 3600) / 60)).padStart(2, '0')}`;
@@ -398,11 +402,11 @@ export default function App() {
                 fontFamily: 'system-ui,sans-serif',
                 textAlign: 'center', lineHeight: '20px', flexShrink: 0,
               }}>{letter}</span>
-              <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{
                   fontSize: 'var(--text-xs)', fontWeight: 600,
                   color: isIncluded ? '#1e293b' : '#94a3b8',
-                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                  lineHeight: 1.3,
                 }}>
                   {spot.name}
                 </div>
