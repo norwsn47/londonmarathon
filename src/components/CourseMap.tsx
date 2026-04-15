@@ -1,16 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+// Import Leaflet marker images from the local package so no runtime requests are
+// made to unpkg.com (a third-party CDN that Safari ITP flags as "reduced protections").
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import type { GpxPoint } from '../lib/gpxParser';
 import type { CourseMarker } from '../lib/types';
 import type { SpotPrediction } from '../lib/spectatorSpots';
 
-// Fix Leaflet's default icon path issue with Vite bundling
+// Fix Leaflet's default icon path issue with Vite bundling —
+// use bundled local assets instead of unpkg.com CDN URLs.
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
 });
 
 /**

@@ -1,0 +1,17 @@
+/*
+  # Enforce HTTPS for at least 1 year — tells Safari (and all browsers) this
+  # site is HTTPS-only, preventing any downgrade to HTTP and removing the
+  # "reduced protections" trust signal.
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+
+  # Prevent MIME-type sniffing
+  X-Content-Type-Options: nosniff
+
+  # Disallow embedding in iframes
+  X-Frame-Options: DENY
+
+  # Send full origin on same-origin, only origin on cross-origin, nothing on downgrade
+  Referrer-Policy: strict-origin-when-cross-origin
+
+  # Disable browser features the app doesn't use
+  Permissions-Policy: geolocation=(), microphone=(), camera=()
