@@ -32,14 +32,13 @@ const DEFAULT_TARGET = 4 * 3600;
 const UNIT = 'km' as const;
 
 // Tile dimension constants
-// COLLAPSED_W sized so even long names (e.g. "East Smithfield — Tower of London") wrap
-// to at most 2 lines within the tile. COLLAPSED_H is tall enough for a 2-line title.
-// DESKTOP_EXPANDED_H is sized to fully contain the tile with the most content
-// (description + stations + crowd notes + links) without clipping or internal scroll.
-const TILE_COLLAPSED_W   = 160;
-const TILE_EXPANDED_W    = 320; // exactly 2× collapsed
-const TILE_COLLAPSED_H   = 80;
-const DESKTOP_EXPANDED_H = 400;
+const TILE_COLLAPSED_W = 160;
+const TILE_EXPANDED_W  = 320; // mobile expanded (full-width tiles)
+const TILE_COLLAPSED_H = 80;
+// Desktop expanded tiles: width = fit-content (min TILE_COLLAPSED_W, max below),
+// height = 30vh so they never tower over the map.
+const DESKTOP_EXPANDED_MAX_W = 280;
+const DESKTOP_EXPANDED_H_CSS = '30vh';
 
 function secToHMM(sec: number): string {
   return `${Math.floor(sec / 3600)}:${String(Math.floor((sec % 3600) / 60)).padStart(2, '0')}`;
@@ -229,9 +228,9 @@ export default function App() {
 
   // ── Tile row rendering (shared between mobile panel and desktop overlay) ──
   function renderTileRow(mobile: boolean) {
-    // On mobile, expanded tiles fill the panel height (minus padding).
-    // On desktop, expanded tiles use a fixed height.
-    const expandedH    = mobile ? mobilePanelH - 16 : DESKTOP_EXPANDED_H;
+    // Mobile expanded tiles fill the panel height (minus padding).
+    // Desktop expanded tiles use 30vh height and fit-content width — see tileStyle below.
+    const expandedH = mobilePanelH - 16;
     // Include toggle is thumb-sized on mobile
     const toggleSize   = mobile ? 28 : 18;
     const toggleIcon   = mobile ? 13 : 9;
@@ -248,8 +247,13 @@ export default function App() {
       const tileStyle: React.CSSProperties = {
         position: 'relative',
         pointerEvents: 'auto',
-        width:  isExpanded ? TILE_EXPANDED_W : TILE_COLLAPSED_W,
-        height: isExpanded ? expandedH : TILE_COLLAPSED_H,
+        // Desktop expanded: content-driven width (min=collapsed, max=280), height=30vh.
+        // Mobile expanded: fixed TILE_EXPANDED_W width, fill panel height.
+        // Collapsed (desktop only): fixed collapsed dimensions.
+        width:    !mobile && isExpanded ? 'fit-content' : isExpanded ? TILE_EXPANDED_W : TILE_COLLAPSED_W,
+        minWidth: !mobile && isExpanded ? TILE_COLLAPSED_W : undefined,
+        maxWidth: !mobile && isExpanded ? DESKTOP_EXPANDED_MAX_W : undefined,
+        height:   isExpanded ? (mobile ? expandedH : DESKTOP_EXPANDED_H_CSS) : TILE_COLLAPSED_H,
         flexShrink: 0,
         display: 'flex',
         flexDirection: 'column',
