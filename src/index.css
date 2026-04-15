@@ -2,6 +2,25 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── App height: 100dvh with JS override for iOS Safari ─────────────────── */
+:root {
+  --app-height: 100dvh; /* overridden by JS for browsers that don't support dvh */
+}
+
+html, body {
+  height: var(--app-height);
+  overflow: hidden;
+  overscroll-behavior: none;
+  /* Safe-area support for iOS notch / home indicator */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+#root {
+  height: var(--app-height);
+  overflow: hidden;
+}
+
 /* ── Typography tokens ──────────────────────────────────────────────────── */
 :root {
   --text-xs:   11px;
@@ -39,9 +58,10 @@
   background: #e8edf3;
 }
 
-/* Position zoom control below top bar on the left */
+/* Map section now starts below the header (header is in normal flow).
+   Zoom controls sit 8px from the top of the map section. */
 .leaflet-top.leaflet-left {
-  top: 64px !important;
+  top: 8px !important;
   left: 8px !important;
 }
 
@@ -77,13 +97,16 @@
   display: none !important;
 }
 
-/* Hide scrollbars on the zoomed-out spectator key panel and its cards */
+/* Hide scrollbars on the spectator panel and tile cards */
 .spectator-key-panel::-webkit-scrollbar,
-.spectator-key-panel > div::-webkit-scrollbar {
+.spectator-key-panel > div::-webkit-scrollbar,
+.tile-scroll-area::-webkit-scrollbar {
   display: none;
 }
-.spectator-key-panel {
+.spectator-key-panel,
+.tile-scroll-area {
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
 
 /* Official course marker icon container */

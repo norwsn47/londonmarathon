@@ -50,9 +50,8 @@ const spectatorIcon = L.divIcon({
 
 /**
  * Letter marker icon.
- * - greyed: excluded from plan → slate colour instead of purple
- * - clockTime: when included and a start time is set, renders arrival time
- *   as text below the circle directly on the map
+ * - greyed: excluded from plan → slate colour
+ * - clockTime: shown below the circle when spot is included and start time is set
  */
 function createLetterIcon(letter: string, glowing = false, greyed = false, clockTime?: string): L.DivIcon {
   const size = glowing ? 28 : 20;
@@ -76,12 +75,6 @@ function createLetterIcon(letter: string, glowing = false, greyed = false, clock
 }
 
 const ZOOM_THRESHOLD = 14;
-
-// Fixed tile dimensions — deterministic, not content-driven
-const COLLAPSED_W = 130;
-const EXPANDED_W = 260; // exactly 2× collapsed
-const COLLAPSED_H = 68;
-const EXPANDED_H = 240;
 
 function buildMarkerPopupHtml(
   marker: CourseMarker,
@@ -109,9 +102,24 @@ interface Props {
   spectatorPredictions?: SpotPrediction[];
   displayUnit?: 'km' | 'mi';
   markerPredictions?: Record<string, { elapsed: string; clock: string }>;
+  /** Tile-interaction state — owned by App, passed down for icon effects */
+  selectedSpotId: string | null;
+  hoveredSpotId: string | null;
+  includedSpotIds: Set<string>;
+  onSpotSelect: (id: string | null) => void;
 }
 
-export default function CourseMap({ gpxPoints, markers, spectatorPredictions = [], displayUnit = 'km', markerPredictions = {} }: Props) {
+export default function CourseMap({
+  gpxPoints,
+  markers,
+  spectatorPredictions = [],
+  displayUnit = 'km',
+  markerPredictions = {},
+  selectedSpotId,
+  hoveredSpotId,
+  includedSpotIds,
+  onSpotSelect,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -119,15 +127,13 @@ export default function CourseMap({ gpxPoints, markers, spectatorPredictions = [
   const markerLayersRef = useRef<Map<string, L.Marker>>(new Map());
   const spectatorLayersRef = useRef<Map<string, L.Marker>>(new Map());
 
-  const cardRowRef = useRef<HTMLDivElement>(null);
-
   const [zoom, setZoom] = useState(13);
-  const [hoveredSpotId, setHoveredSpotId] = useState<string | null>(null);
-  const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
-  const [includedSpotIds, setIncludedSpotIds] = useState<Set<string>>(new Set());
 
-  // One-time init: mark all spots as included when they first load
-  const includedInitRef = useRef(false);
+  // Refs to avoid stale closures in Leaflet event handlers
+  const selectedSpotIdRef = useRef<string | null>(selectedSpotId);
+  const onSpotSelectRef = useRef(onSpotSelect);
+  useEffect(() => { selectedSpotIdRef.current = selectedSpotId; }, [selectedSpotId]);
+  useEffect(() => { onSpotSelectRef.current = onSpotSelect; }, [onSpotSelect]);
 
   // Spots sorted by course distance — defines lettering A, B, C…
   const sortedSpots = useMemo(
@@ -175,16 +181,8 @@ export default function CourseMap({ gpxPoints, markers, spectatorPredictions = [
     containerRef.current?.classList.toggle('zoomed-out', zoom < ZOOM_THRESHOLD);
   }, [zoom]);
 
-  // On first load, mark every spot as included
-  useEffect(() => {
-    if (!includedInitRef.current && sortedSpots.length > 0) {
-      includedInitRef.current = true;
-      setIncludedSpotIds(new Set(sortedSpots.map(s => s.id)));
-    }
-  }, [sortedSpots]);
-
   // Swap icons: zoomed-out → lettered (glow on hover/select, grey when excluded,
-  // clock time shown on map when included and available); zoomed-in → binoculars
+  // clock time shown on map when included); zoomed-in → binoculars
   useEffect(() => {
     if (zoom < ZOOM_THRESHOLD) {
       sortedSpots.forEach((spot, i) => {
@@ -253,13 +251,6 @@ export default function CourseMap({ gpxPoints, markers, spectatorPredictions = [
     }
   }, [markers, markerPredictions]);
 
-  // Scroll selected tile into view when selected via map click
-  useEffect(() => {
-    if (!selectedSpotId) return;
-    const el = document.querySelector(`[data-spot-id="${selectedSpotId}"]`);
-    el?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-  }, [selectedSpotId]);
-
   // Draw spectator viewing spots
   useEffect(() => {
     const map = mapRef.current;
@@ -272,7 +263,6 @@ export default function CourseMap({ gpxPoints, markers, spectatorPredictions = [
       }
     }
 
-    // Letter assigned by course-distance order (A = earliest)
     const letterMap = new Map(
       [...spectatorPredictions]
         .sort((a, b) => a.distanceKm - b.distanceKm)
@@ -288,9 +278,14 @@ export default function CourseMap({ gpxPoints, markers, spectatorPredictions = [
       } else {
         const distLabel = displayUnit === 'mi' ? `Mile ${spot.distanceMile}` : `${spot.distanceKm} km`;
         const layer = L.marker([spot.lat, spot.lng], { icon: spectatorIcon })
-          .bindTooltip(`${letter} · ${spot.name} · ${distLabel}`, { permanent: true, direction: 'right', className: 'spectator-label', offset: [8, 0] })
+          .bindTooltip(`${letter} · ${spot.name} · ${distLabel}`, {
+            permanent: true, direction: 'right', className: 'spectator-label', offset: [8, 0],
+          })
           .addTo(map);
-        layer.on('click', () => setSelectedSpotId(prev => prev === spot.id ? null : spot.id));
+        layer.on('click', () => {
+          const curr = selectedSpotIdRef.current;
+          onSpotSelectRef.current(curr === spot.id ? null : spot.id);
+        });
         spectatorLayersRef.current.set(spot.id, layer);
       }
     }
@@ -299,253 +294,6 @@ export default function CourseMap({ gpxPoints, markers, spectatorPredictions = [
   return (
     <div ref={wrapperRef} className="relative w-full h-full">
       <div ref={containerRef} style={{ height: '100%' }} />
-
-      {/* Zoomed-out: card row pinned to bottom — horizontal scroll, tiles grow upward */}
-      {zoom < ZOOM_THRESHOLD && sortedSpots.length > 0 && (
-        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 900, pointerEvents: 'none' }}>
-          <div style={{ position: 'relative', padding: '0 8px 8px 8px' }}>
-
-            {/* Right-fade gradient + scroll arrow */}
-            {sortedSpots.length > 4 && (
-              <>
-                <div style={{
-                  position: 'absolute', right: 8, bottom: 8,
-                  width: 72, height: COLLAPSED_H,
-                  background: 'linear-gradient(to right, transparent, rgba(241,245,249,0.95))',
-                  pointerEvents: 'none', zIndex: 2,
-                }} />
-                <button
-                  onClick={() => cardRowRef.current?.scrollBy({ left: EXPANDED_W + 6, behavior: 'smooth' })}
-                  style={{
-                    position: 'absolute', right: 14, bottom: 16,
-                    zIndex: 3, width: 32, height: 32, borderRadius: '50%',
-                    background: 'white', border: '1px solid #e2e8f0',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: '#7c3aed', pointerEvents: 'auto',
-                  }}
-                  title="Scroll right"
-                >
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                    <path d="M5 2l5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
-              </>
-            )}
-
-            {/* Scrollable card row — align-items: flex-end → expanded tiles grow upward */}
-            <div
-              ref={cardRowRef}
-              className="spectator-key-panel"
-              style={{
-                display: 'flex', flexDirection: 'row', alignItems: 'flex-end', gap: 6,
-                overflowX: 'auto', scrollbarWidth: 'none',
-                paddingRight: sortedSpots.length > 4 ? 52 : 0,
-                pointerEvents: 'none',
-              }}
-            >
-              {sortedSpots.map((spot, i) => {
-                const isActive = hoveredSpotId === spot.id || selectedSpotId === spot.id;
-                const isSelected = selectedSpotId === spot.id;
-                const isIncluded = includedSpotIds.has(spot.id);
-                const letter = String.fromCharCode(65 + i);
-                const distLabel = displayUnit === 'mi' ? `Mi ${spot.distanceMile}` : `${spot.distanceKm} km`;
-                return (
-                  <div
-                    key={spot.id}
-                    data-spot-id={spot.id}
-                    onMouseEnter={() => setHoveredSpotId(spot.id)}
-                    onMouseLeave={() => setHoveredSpotId(null)}
-                    onClick={() => setSelectedSpotId(prev => prev === spot.id ? null : spot.id)}
-                    style={{
-                      position: 'relative',
-                      pointerEvents: 'auto',
-                      width: isActive ? EXPANDED_W : COLLAPSED_W,
-                      height: isActive ? EXPANDED_H : COLLAPSED_H,
-                      flexShrink: 0,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'flex-start',
-                      justifyContent: 'flex-start',
-                      overflowY: isActive ? 'auto' : 'hidden',
-                      background: isSelected ? 'rgba(245,240,255,0.98)' : isActive ? 'rgba(250,247,255,0.97)' : 'rgba(255,255,255,0.93)',
-                      border: isSelected ? '1.5px solid #a855f7' : isActive ? '1px solid #c084fc' : '1px solid #e2e8f0',
-                      borderRadius: 10,
-                      padding: isActive ? '8px 8px 8px 8px' : '6px 7px',
-                      boxShadow: isSelected ? '0 4px 16px rgba(168,85,247,0.28)' : isActive ? '0 2px 10px rgba(168,85,247,0.18)' : '0 1px 3px rgba(0,0,0,0.08)',
-                      cursor: 'pointer',
-                      transition: 'border-color 0.18s, box-shadow 0.18s, background 0.18s',
-                    }}
-                  >
-                    {/* Top-right controls — visible when expanded */}
-                    {isActive && (
-                      <div style={{ position: 'absolute', top: 6, right: 6, display: 'flex', gap: 4 }}>
-                        {/* Include-in-plan toggle */}
-                        <button
-                          onClick={e => {
-                            e.stopPropagation();
-                            setIncludedSpotIds(prev => {
-                              const next = new Set(prev);
-                              isIncluded ? next.delete(spot.id) : next.add(spot.id);
-                              return next;
-                            });
-                          }}
-                          title={isIncluded ? 'Remove from plan' : 'Add to plan'}
-                          style={{
-                            width: 18, height: 18, borderRadius: '50%',
-                            background: isIncluded ? 'rgba(22,163,74,0.12)' : 'rgba(148,163,184,0.12)',
-                            border: `1px solid ${isIncluded ? 'rgba(22,163,74,0.45)' : 'rgba(148,163,184,0.45)'}`,
-                            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            color: isIncluded ? '#16a34a' : '#94a3b8', padding: 0,
-                          }}
-                        >
-                          {isIncluded ? (
-                            <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
-                              <path d="M1.5 4.5l2.5 2.5L7.5 2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-                            </svg>
-                          ) : (
-                            <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
-                              <path d="M4.5 1.5v6M1.5 4.5h6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
-                            </svg>
-                          )}
-                        </button>
-                        {/* Close */}
-                        <button
-                          onClick={e => { e.stopPropagation(); setSelectedSpotId(null); setHoveredSpotId(null); }}
-                          title="Close"
-                          style={{
-                            width: 18, height: 18, borderRadius: '50%',
-                            background: 'rgba(168,85,247,0.12)', border: 'none',
-                            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            color: '#a855f7', padding: 0,
-                          }}
-                        >
-                          <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
-                            <path d="M1.5 1.5l6 6M7.5 1.5l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                          </svg>
-                        </button>
-                      </div>
-                    )}
-
-                    {isActive ? (
-                      /* Expanded layout: letter at top-left, then details */
-                      <>
-                        <span style={{
-                          width: 24, height: 24, borderRadius: '50%',
-                          background: isIncluded ? '#9333ea' : '#94a3b8',
-                          color: 'white', fontSize: 'var(--text-sm)', fontWeight: 700,
-                          fontFamily: 'system-ui,sans-serif',
-                          textAlign: 'center', lineHeight: '24px', flexShrink: 0,
-                        }}>{letter}</span>
-                        <div style={{ marginTop: 5 }}>
-                          <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: '#1e293b', paddingRight: 46 }}>
-                            {spot.name}
-                          </div>
-                          <div style={{ display: 'flex', gap: 6, marginTop: 1 }}>
-                            <span style={{ fontSize: 'var(--text-xs)', color: '#94a3b8', letterSpacing: '0.02em' }}>{distLabel}</span>
-                            {spot.clockTime && (
-                              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: isIncluded ? '#ea580c' : '#94a3b8' }}>{spot.clockTime}</span>
-                            )}
-                          </div>
-                        </div>
-                        {spot.description && (
-                          <div style={{ marginTop: 5, fontSize: 'var(--text-xs)', color: '#64748b', lineHeight: 1.45, letterSpacing: '0.02em' }}>
-                            {spot.description}
-                          </div>
-                        )}
-                        {spot.nearestStations.length > 0 && (
-                          <div style={{ marginTop: 5 }}>
-                            <div style={{ fontSize: 'var(--text-xs)', color: '#ea580c', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 3 }}>
-                              Nearest stations
-                            </div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                              {spot.nearestStations.map(s => (
-                                <span key={s} style={{
-                                  background: '#f1f5f9', border: '1px solid #e2e8f0',
-                                  borderRadius: 5, padding: '1px 6px',
-                                  fontSize: 'var(--text-xs)', color: '#334155', letterSpacing: '0.02em',
-                                }}>{s}</span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {spot.crowdNotes && (
-                          <div style={{
-                            marginTop: 5, borderTop: '1px solid #e2e8f0', paddingTop: 5,
-                            fontSize: 'var(--text-xs)', color: '#64748b', lineHeight: 1.45, letterSpacing: '0.02em',
-                          }}>
-                            {spot.crowdNotes}
-                          </div>
-                        )}
-                        {(spot.url || spot.mapsUrl) && (
-                          <div style={{ marginTop: 5, display: 'flex', gap: 8, borderTop: '1px solid #e2e8f0', paddingTop: 5 }}>
-                            {spot.url && (
-                              <a
-                                href={spot.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={e => e.stopPropagation()}
-                                title="View source"
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-xs)', color: '#a855f7', textDecoration: 'none' }}
-                              >
-                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                                  <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.2"/>
-                                  <ellipse cx="6" cy="6" rx="2.2" ry="5" stroke="currentColor" strokeWidth="1.2"/>
-                                  <line x1="1" y1="4.5" x2="11" y2="4.5" stroke="currentColor" strokeWidth="1.2"/>
-                                  <line x1="1" y1="7.5" x2="11" y2="7.5" stroke="currentColor" strokeWidth="1.2"/>
-                                </svg>
-                                Source
-                              </a>
-                            )}
-                            {spot.mapsUrl && (
-                              <a
-                                href={spot.mapsUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={e => e.stopPropagation()}
-                                title="Open in Google Maps"
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-xs)', color: '#1a73e8', textDecoration: 'none' }}
-                              >
-                                <svg width="10" height="14" viewBox="0 0 10 14" fill="none">
-                                  <path d="M5 0C2.24 0 0 2.24 0 5c0 3.75 5 9 5 9s5-5.25 5-9c0-2.76-2.24-5-5-5z" fill="#EA4335"/>
-                                  <circle cx="5" cy="5" r="2" fill="white"/>
-                                </svg>
-                                Maps
-                              </a>
-                            )}
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      /* Compact layout — fixed height, content top-left */
-                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7 }}>
-                        <span style={{
-                          width: 20, height: 20, borderRadius: '50%',
-                          background: isIncluded ? '#a855f7' : '#94a3b8',
-                          color: 'white', fontSize: 'var(--text-xs)', fontWeight: 700,
-                          fontFamily: 'system-ui,sans-serif',
-                          textAlign: 'center', lineHeight: '20px', flexShrink: 0,
-                        }}>{letter}</span>
-                        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                          <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: isIncluded ? '#1e293b' : '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {spot.name}
-                          </div>
-                          <div style={{ display: 'flex', gap: 6, marginTop: 1 }}>
-                            <span style={{ fontSize: 'var(--text-xs)', color: isIncluded ? '#94a3b8' : '#cbd5e1', letterSpacing: '0.02em' }}>{distLabel}</span>
-                            {spot.clockTime && (
-                              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: isIncluded ? '#ea580c' : '#cbd5e1' }}>{spot.clockTime}</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Zoomed-in: small legend pill */}
       {zoom >= ZOOM_THRESHOLD && (
