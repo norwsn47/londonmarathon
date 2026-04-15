@@ -81,6 +81,9 @@ export default function App() {
   const [targetInputVal, setTargetInputVal] = useState(secToHMM(DEFAULT_TARGET));
   const targetInputRef = useRef<HTMLInputElement>(null);
   const [showSplits, setShowSplits] = useState(false);
+  const [showMobilePanel, setShowMobilePanel] = useState(false);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
 
   // ── Spectator tile interaction state (lifted out of CourseMap) ────────────
   const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
@@ -182,6 +185,16 @@ export default function App() {
     el?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
   }, [selectedSpotId]);
 
+  // Update scroll arrow enabled state after spots load/change
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      const el = cardRowRef.current;
+      if (!el) return;
+      setCanScrollLeft(el.scrollLeft > 4);
+      setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
+    });
+  }, [sortedSpots]);
+
   // ── Helpers ───────────────────────────────────────────────────────────────
   function applyTargetChange(newSec: number) {
     setTargetSec(newSec);
@@ -207,15 +220,27 @@ export default function App() {
     });
   }
 
+  function updateScrollArrows() {
+    const el = cardRowRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 4);
+    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
+  }
+
   // ── Tile row rendering (shared between mobile panel and desktop overlay) ──
   function renderTileRow(mobile: boolean) {
     // On mobile, expanded tiles fill the panel height (minus padding).
     // On desktop, expanded tiles use a fixed height.
-    const expandedH = mobile ? mobilePanelH - 16 : DESKTOP_EXPANDED_H;
+    const expandedH    = mobile ? mobilePanelH - 16 : DESKTOP_EXPANDED_H;
+    // Include toggle is thumb-sized on mobile
+    const toggleSize   = mobile ? 28 : 18;
+    const toggleIcon   = mobile ? 13 : 9;
 
     return sortedSpots.map((spot, i) => {
       const isActive   = hoveredSpotId === spot.id || selectedSpotId === spot.id;
       const isSelected = selectedSpotId === spot.id;
+      // Mobile tiles are always in the expanded state — no collapse interaction
+      const isExpanded = mobile || isActive;
       const isIncluded = includedSpotIds.has(spot.id);
       const letter     = String.fromCharCode(65 + i);
       const distLabel  = displayUnit === 'mi' ? `Mi ${spot.distanceMile}` : `${spot.distanceKm} km`;
@@ -223,8 +248,8 @@ export default function App() {
       const tileStyle: React.CSSProperties = {
         position: 'relative',
         pointerEvents: 'auto',
-        width: isActive ? TILE_EXPANDED_W : TILE_COLLAPSED_W,
-        height: isActive ? expandedH : TILE_COLLAPSED_H,
+        width:  isExpanded ? TILE_EXPANDED_W : TILE_COLLAPSED_W,
+        height: isExpanded ? expandedH : TILE_COLLAPSED_H,
         flexShrink: 0,
         display: 'flex',
         flexDirection: 'column',
@@ -232,36 +257,66 @@ export default function App() {
         justifyContent: 'flex-start',
         // On mobile the tile is overflow:hidden; inner body scrolls.
         // On desktop the tile itself scrolls (overflow-y:auto when expanded).
-        overflowY: (isActive && !mobile) ? 'auto' : 'hidden',
+        overflowY: (isExpanded && !mobile) ? 'auto' : 'hidden',
         background: isSelected ? 'rgba(245,240,255,0.98)' : isActive ? 'rgba(250,247,255,0.97)' : 'rgba(255,255,255,0.93)',
         border: isSelected ? '1.5px solid #a855f7' : isActive ? '1px solid #c084fc' : '1px solid #e2e8f0',
         borderRadius: 10,
-        padding: isActive ? '8px' : '6px 7px',
+        padding: isExpanded ? '8px' : '6px 7px',
         boxShadow: isSelected
           ? '0 4px 16px rgba(168,85,247,0.28)'
           : isActive ? '0 2px 10px rgba(168,85,247,0.18)'
           : '0 1px 3px rgba(0,0,0,0.08)',
-        cursor: 'pointer',
+        cursor: mobile ? 'default' : 'pointer',
         transition: 'border-color 0.18s, box-shadow 0.18s, background 0.18s',
       };
+
+      // Links element — on mobile pinned as tile footer, on desktop inside scroll body
+      const linksEl = (spot.url || spot.mapsUrl) ? (
+        <div style={{ display: 'flex', gap: 8, borderTop: '1px solid #e2e8f0', paddingTop: 5, flexShrink: 0 }}>
+          {spot.url && (
+            <a href={spot.url} target="_blank" rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()} title="View source"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-xs)', color: '#a855f7', textDecoration: 'none' }}>
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.2"/>
+                <ellipse cx="6" cy="6" rx="2.2" ry="5" stroke="currentColor" strokeWidth="1.2"/>
+                <line x1="1" y1="4.5" x2="11" y2="4.5" stroke="currentColor" strokeWidth="1.2"/>
+                <line x1="1" y1="7.5" x2="11" y2="7.5" stroke="currentColor" strokeWidth="1.2"/>
+              </svg>
+              Source
+            </a>
+          )}
+          {spot.mapsUrl && (
+            <a href={spot.mapsUrl} target="_blank" rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()} title="Open in Google Maps"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-xs)', color: '#1a73e8', textDecoration: 'none' }}>
+              <svg width="10" height="14" viewBox="0 0 10 14" fill="none">
+                <path d="M5 0C2.24 0 0 2.24 0 5c0 3.75 5 9 5 9s5-5.25 5-9c0-2.76-2.24-5-5-5z" fill="#EA4335"/>
+                <circle cx="5" cy="5" r="2" fill="white"/>
+              </svg>
+              Maps
+            </a>
+          )}
+        </div>
+      ) : null;
 
       return (
         <div
           key={spot.id}
           data-spot-id={spot.id}
-          onMouseEnter={() => setHoveredSpotId(spot.id)}
-          onMouseLeave={() => setHoveredSpotId(null)}
-          onClick={() => setSelectedSpotId(prev => prev === spot.id ? null : spot.id)}
+          onMouseEnter={() => !mobile && setHoveredSpotId(spot.id)}
+          onMouseLeave={() => !mobile && setHoveredSpotId(null)}
+          onClick={() => !mobile && setSelectedSpotId(prev => prev === spot.id ? null : spot.id)}
           style={tileStyle}
         >
-          {/* Top-right controls — visible when expanded */}
-          {isActive && (
+          {/* Top-right controls — include toggle always shown when expanded */}
+          {isExpanded && (
             <div style={{ position: 'absolute', top: 6, right: 6, display: 'flex', gap: 4, zIndex: 1 }}>
               <button
                 onClick={e => { e.stopPropagation(); toggleIncluded(spot.id); }}
                 title={isIncluded ? 'Remove from plan' : 'Add to plan'}
                 style={{
-                  width: 18, height: 18, borderRadius: '50%',
+                  width: toggleSize, height: toggleSize, borderRadius: '50%',
                   background: isIncluded ? 'rgba(22,163,74,0.12)' : 'rgba(148,163,184,0.12)',
                   border: `1px solid ${isIncluded ? 'rgba(22,163,74,0.45)' : 'rgba(148,163,184,0.45)'}`,
                   cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -269,33 +324,36 @@ export default function App() {
                 }}
               >
                 {isIncluded ? (
-                  <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+                  <svg width={toggleIcon} height={toggleIcon} viewBox="0 0 9 9" fill="none">
                     <path d="M1.5 4.5l2.5 2.5L7.5 2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                 ) : (
-                  <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+                  <svg width={toggleIcon} height={toggleIcon} viewBox="0 0 9 9" fill="none">
                     <path d="M4.5 1.5v6M1.5 4.5h6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
                   </svg>
                 )}
               </button>
-              <button
-                onClick={e => { e.stopPropagation(); setSelectedSpotId(null); setHoveredSpotId(null); }}
-                title="Close"
-                style={{
-                  width: 18, height: 18, borderRadius: '50%',
-                  background: 'rgba(168,85,247,0.12)', border: 'none',
-                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#a855f7', padding: 0,
-                }}
-              >
-                <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
-                  <path d="M1.5 1.5l6 6M7.5 1.5l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                </svg>
-              </button>
+              {/* Close button — desktop only; mobile tiles have no collapse */}
+              {!mobile && (
+                <button
+                  onClick={e => { e.stopPropagation(); setSelectedSpotId(null); setHoveredSpotId(null); }}
+                  title="Close"
+                  style={{
+                    width: 18, height: 18, borderRadius: '50%',
+                    background: 'rgba(168,85,247,0.12)', border: 'none',
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: '#a855f7', padding: 0,
+                  }}
+                >
+                  <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+                    <path d="M1.5 1.5l6 6M7.5 1.5l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                  </svg>
+                </button>
+              )}
             </div>
           )}
 
-          {isActive ? (
+          {isExpanded ? (
             // ── Expanded ─────────────────────────────────────────────────────
             <>
               {/* Fixed header: letter + name + dist/time always visible */}
@@ -309,7 +367,7 @@ export default function App() {
                   textAlign: 'center', lineHeight: '24px',
                 }}>{letter}</span>
                 <div style={{ marginTop: 5 }}>
-                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: '#1e293b', paddingRight: 46 }}>
+                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: '#1e293b', paddingRight: mobile ? toggleSize + 10 : 46 }}>
                     {spot.name}
                   </div>
                   <div style={{ display: 'flex', gap: 6, marginTop: 1 }}>
@@ -323,7 +381,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Scrollable body — on mobile this area scrolls; on desktop the tile itself scrolls */}
+              {/* Scrollable body — description, stations, crowd notes */}
               <div
                 className="tile-scroll-area"
                 style={{
@@ -362,38 +420,19 @@ export default function App() {
                     {spot.crowdNotes}
                   </div>
                 )}
-                {(spot.url || spot.mapsUrl) && (
-                  <div style={{ display: 'flex', gap: 8, borderTop: '1px solid #e2e8f0', paddingTop: 5 }}>
-                    {spot.url && (
-                      <a href={spot.url} target="_blank" rel="noopener noreferrer"
-                        onClick={e => e.stopPropagation()} title="View source"
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-xs)', color: '#a855f7', textDecoration: 'none' }}>
-                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                          <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.2"/>
-                          <ellipse cx="6" cy="6" rx="2.2" ry="5" stroke="currentColor" strokeWidth="1.2"/>
-                          <line x1="1" y1="4.5" x2="11" y2="4.5" stroke="currentColor" strokeWidth="1.2"/>
-                          <line x1="1" y1="7.5" x2="11" y2="7.5" stroke="currentColor" strokeWidth="1.2"/>
-                        </svg>
-                        Source
-                      </a>
-                    )}
-                    {spot.mapsUrl && (
-                      <a href={spot.mapsUrl} target="_blank" rel="noopener noreferrer"
-                        onClick={e => e.stopPropagation()} title="Open in Google Maps"
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-xs)', color: '#1a73e8', textDecoration: 'none' }}>
-                        <svg width="10" height="14" viewBox="0 0 10 14" fill="none">
-                          <path d="M5 0C2.24 0 0 2.24 0 5c0 3.75 5 9 5 9s5-5.25 5-9c0-2.76-2.24-5-5-5z" fill="#EA4335"/>
-                          <circle cx="5" cy="5" r="2" fill="white"/>
-                        </svg>
-                        Maps
-                      </a>
-                    )}
-                  </div>
-                )}
+                {/* On desktop the links sit inside the scroll body */}
+                {!mobile && linksEl}
               </div>
+
+              {/* On mobile the links are pinned to the bottom of the tile */}
+              {mobile && linksEl && (
+                <div style={{ flexShrink: 0, marginTop: 4 }}>
+                  {linksEl}
+                </div>
+              )}
             </>
           ) : (
-            // ── Collapsed ────────────────────────────────────────────────────
+            // ── Collapsed (desktop only) ──────────────────────────────────
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7 }}>
               <span style={{
                 width: 20, height: 20, borderRadius: '50%',
@@ -527,7 +566,7 @@ export default function App() {
     >
       {/* Header — normal flow, fixed height */}
       <div
-        className="flex-shrink-0 z-[1000] flex items-center px-4 bg-white/95 backdrop-blur-sm border-b border-border shadow-sm"
+        className="flex-shrink-0 z-[1000] flex items-center justify-between px-4 bg-white/95 backdrop-blur-sm border-b border-border shadow-sm"
         style={{ height: 56 }}
       >
         <div className="flex items-center gap-2.5">
@@ -542,11 +581,137 @@ export default function App() {
             <p className="t-xs text-slate-400">Plan your perfect race</p>
           </div>
         </div>
+        {/* Mobile: target time pill + expand toggle */}
+        {isMobile && (
+          <button
+            onClick={() => setShowMobilePanel(v => !v)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '6px 12px', borderRadius: 10,
+              background: showMobilePanel ? 'rgba(249,115,22,0.12)' : 'rgba(249,115,22,0.08)',
+              border: `1px solid ${showMobilePanel ? 'rgba(249,115,22,0.4)' : 'rgba(249,115,22,0.2)'}`,
+              cursor: 'pointer',
+            }}
+          >
+            <span style={{ fontSize: 'var(--text-md)', fontWeight: 700, fontFamily: 'monospace', color: '#ea580c', letterSpacing: '-0.02em' }}>
+              {secToHMM(targetSec)}
+            </span>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"
+              style={{ color: '#ea580c', transform: showMobilePanel ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }}>
+              <path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+        )}
       </div>
 
       {isMobile ? (
         // ── Mobile: map (top 50%) + tile panel (bottom 50%) ─────────────────
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+
+          {/* Slide-down settings panel — appears below header, above map */}
+          {showMobilePanel && (
+            <div style={{
+              position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2000,
+              background: 'white', boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+              borderBottom: '1px solid #e2e8f0', padding: '12px 16px 16px',
+            }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {/* Target + pace */}
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+                  <div>
+                    <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>Target</div>
+                    {editingTarget ? (
+                      <input
+                        ref={targetInputRef}
+                        type="text"
+                        value={targetInputVal}
+                        onChange={e => setTargetInputVal(e.target.value)}
+                        onBlur={commitTargetInput}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') targetInputRef.current?.blur();
+                          if (e.key === 'Escape') { setTargetInputVal(secToHMM(targetSec)); setEditingTarget(false); }
+                        }}
+                        style={{ width: 80, textAlign: 'center', fontSize: 'var(--text-xl)', fontWeight: 700, fontFamily: 'monospace', color: '#ea580c', background: 'rgba(249,115,22,0.05)', border: '1px solid rgba(249,115,22,0.5)', borderRadius: 10, padding: '2px 8px', outline: 'none' }}
+                        autoFocus
+                      />
+                    ) : (
+                      <button
+                        onClick={() => { setTargetInputVal(secToHMM(targetSec)); setEditingTarget(true); }}
+                        style={{ fontSize: 'var(--text-xl)', fontWeight: 700, fontFamily: 'monospace', color: '#ea580c', background: 'rgba(249,115,22,0.05)', border: '1px solid rgba(249,115,22,0.2)', borderRadius: 10, padding: '2px 12px', cursor: 'pointer' }}
+                      >
+                        {secToHMM(targetSec)}
+                      </button>
+                    )}
+                  </div>
+                  <span style={{ fontSize: 'var(--text-xs)', color: '#94a3b8', fontFamily: 'monospace' }}>
+                    {formatPace(targetSec, displayUnit)}<span style={{ color: '#cbd5e1' }}>/{displayUnit}</span>
+                  </span>
+                </div>
+
+                {/* Start + Finish */}
+                <div style={{ display: 'flex', gap: 16, alignItems: 'flex-end' }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', fontSize: 'var(--text-xs)', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 3 }}>Start</label>
+                    <input
+                      type="time"
+                      value={startTimeStr}
+                      onChange={e => setStartTimeStr(e.target.value)}
+                      style={{ fontSize: 'var(--text-md)', fontWeight: 600, fontFamily: 'monospace', color: '#0f172a', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '4px 8px', outline: 'none', width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 3 }}>Finish</div>
+                    <div style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: '#0f172a' }}>{predictedFinishTime}</div>
+                  </div>
+                </div>
+
+                {/* km/mi toggle + splits toggle */}
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    {(['km', 'mi'] as const).map(u => (
+                      <button
+                        key={u}
+                        onClick={() => setDisplayUnit(u)}
+                        style={{
+                          fontSize: 'var(--text-sm)', fontWeight: 600, padding: '5px 14px', borderRadius: 8,
+                          border: displayUnit === u ? '1px solid rgba(249,115,22,0.5)' : '1px solid #e2e8f0',
+                          background: displayUnit === u ? 'rgba(249,115,22,0.1)' : 'transparent',
+                          color: displayUnit === u ? '#ea580c' : '#64748b', cursor: 'pointer',
+                        }}
+                      >{u}</button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => setShowSplits(v => !v)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-xs)', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', background: 'none', border: 'none', cursor: 'pointer', padding: '5px 4px', marginLeft: 'auto' }}
+                  >
+                    Splits
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ transform: showSplits ? 'none' : 'rotate(180deg)', transition: 'transform 0.2s' }}>
+                      <path d="M8 2l-4 4 4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Splits table */}
+                {showSplits && (
+                  <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    <div style={{ display: 'flex', fontSize: 'var(--text-xs)', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
+                      <span style={{ width: 52 }}>Mark</span>
+                      <span style={{ flex: 1, textAlign: 'right' }}>Split</span>
+                      <span style={{ width: 64, textAlign: 'right' }}>Total</span>
+                    </div>
+                    {splits.map((row, i) => (
+                      <div key={row.label} style={{ display: 'flex', alignItems: 'center', padding: '2px 4px', borderRadius: 4, background: i === 4 ? 'rgba(249,115,22,0.05)' : 'transparent' }}>
+                        <span style={{ width: 52, fontSize: 'var(--text-xs)', fontWeight: 600, color: i === 4 ? '#ea580c' : '#64748b' }}>{row.label}</span>
+                        <span style={{ flex: 1, textAlign: 'right', fontSize: 'var(--text-xs)', fontFamily: 'monospace', color: '#94a3b8' }}>{row.split}</span>
+                        <span style={{ width: 64, textAlign: 'right', fontSize: 'var(--text-xs)', fontFamily: 'monospace', fontWeight: 600, color: i === splits.length - 1 ? '#ea580c' : '#334155' }}>{row.total}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Map section */}
           <div style={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' }}>
@@ -561,10 +726,6 @@ export default function App() {
               includedSpotIds={includedSpotIds}
               onSpotSelect={setSelectedSpotId}
             />
-            {/* Right panel floats in the top-right of the map */}
-            <div style={{ position: 'absolute', right: 8, top: 8, zIndex: 1000 }}>
-              {rightPanel}
-            </div>
           </div>
 
           {/* Tile panel — fixed height, horizontal scroll only */}
@@ -576,23 +737,60 @@ export default function App() {
             borderTop: '1px solid #e2e8f0',
             position: 'relative',
           }}>
-            {/* Right-fade + scroll arrow */}
-            {sortedSpots.length > 3 && (
+            {/* Left-fade + left scroll arrow */}
+            {sortedSpots.length > 1 && (
               <>
-                <div style={{
-                  position: 'absolute', right: 0, top: 0, bottom: 0, width: 56,
-                  background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.9))',
-                  pointerEvents: 'none', zIndex: 2,
-                }} />
+                {canScrollLeft && (
+                  <div style={{
+                    position: 'absolute', left: 0, top: 0, bottom: 0, width: 48,
+                    background: 'linear-gradient(to left, transparent, rgba(255,255,255,0.9))',
+                    pointerEvents: 'none', zIndex: 2,
+                  }} />
+                )}
+                <button
+                  onClick={() => cardRowRef.current?.scrollBy({ left: -(TILE_EXPANDED_W + 6), behavior: 'smooth' })}
+                  style={{
+                    position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)',
+                    zIndex: 3, width: 36, height: 36, borderRadius: '50%',
+                    background: 'white', border: '1px solid #e2e8f0',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+                    cursor: canScrollLeft ? 'pointer' : 'default',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: canScrollLeft ? '#7c3aed' : '#cbd5e1',
+                    opacity: canScrollLeft ? 1 : 0.35,
+                    pointerEvents: canScrollLeft ? 'auto' : 'none',
+                  }}
+                  title="Scroll left"
+                >
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <path d="M9 2l-5 5 5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </>
+            )}
+
+            {/* Right-fade + right scroll arrow */}
+            {sortedSpots.length > 1 && (
+              <>
+                {canScrollRight && (
+                  <div style={{
+                    position: 'absolute', right: 0, top: 0, bottom: 0, width: 48,
+                    background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.9))',
+                    pointerEvents: 'none', zIndex: 2,
+                  }} />
+                )}
                 <button
                   onClick={() => cardRowRef.current?.scrollBy({ left: TILE_EXPANDED_W + 6, behavior: 'smooth' })}
                   style={{
                     position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
-                    zIndex: 3, width: 32, height: 32, borderRadius: '50%',
+                    zIndex: 3, width: 36, height: 36, borderRadius: '50%',
                     background: 'white', border: '1px solid #e2e8f0',
                     boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: '#7c3aed',
+                    cursor: canScrollRight ? 'pointer' : 'default',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: canScrollRight ? '#7c3aed' : '#cbd5e1',
+                    opacity: canScrollRight ? 1 : 0.35,
+                    pointerEvents: canScrollRight ? 'auto' : 'none',
                   }}
                   title="Scroll right"
                 >
@@ -607,6 +805,7 @@ export default function App() {
             <div
               ref={cardRowRef}
               className="spectator-key-panel"
+              onScroll={updateScrollArrows}
               style={{
                 height: '100%',
                 overflowX: 'auto',
@@ -616,8 +815,9 @@ export default function App() {
                 alignItems: 'flex-end',
                 gap: 6,
                 padding: '8px',
+                paddingLeft: sortedSpots.length > 1 ? 52 : 8,
+                paddingRight: sortedSpots.length > 1 ? 52 : 8,
                 boxSizing: 'border-box',
-                paddingRight: sortedSpots.length > 3 ? 52 : 8,
               }}
             >
               {renderTileRow(true)}
@@ -654,11 +854,41 @@ export default function App() {
             <div style={{ position: 'relative', padding: '0 8px 8px 8px' }}>
               {sortedSpots.length > 4 && (
                 <>
-                  <div style={{
-                    position: 'absolute', right: 8, bottom: 8, width: 72, height: TILE_COLLAPSED_H,
-                    background: 'linear-gradient(to right, transparent, rgba(241,245,249,0.95))',
-                    pointerEvents: 'none', zIndex: 2,
-                  }} />
+                  {/* Left arrow */}
+                  {canScrollLeft && (
+                    <div style={{
+                      position: 'absolute', left: 8, bottom: 8, width: 56, height: TILE_COLLAPSED_H,
+                      background: 'linear-gradient(to left, transparent, rgba(241,245,249,0.95))',
+                      pointerEvents: 'none', zIndex: 2,
+                    }} />
+                  )}
+                  <button
+                    onClick={() => cardRowRef.current?.scrollBy({ left: -(TILE_EXPANDED_W + 6), behavior: 'smooth' })}
+                    style={{
+                      position: 'absolute', left: 14, bottom: 16,
+                      zIndex: 3, width: 32, height: 32, borderRadius: '50%',
+                      background: 'white', border: '1px solid #e2e8f0',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+                      cursor: canScrollLeft ? 'pointer' : 'default',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: canScrollLeft ? '#7c3aed' : '#cbd5e1',
+                      opacity: canScrollLeft ? 1 : 0.35,
+                      pointerEvents: 'auto',
+                    }}
+                    title="Scroll left"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                      <path d="M9 2l-5 5 5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </button>
+                  {/* Right arrow */}
+                  {canScrollRight && (
+                    <div style={{
+                      position: 'absolute', right: 8, bottom: 8, width: 72, height: TILE_COLLAPSED_H,
+                      background: 'linear-gradient(to right, transparent, rgba(241,245,249,0.95))',
+                      pointerEvents: 'none', zIndex: 2,
+                    }} />
+                  )}
                   <button
                     onClick={() => cardRowRef.current?.scrollBy({ left: TILE_EXPANDED_W + 6, behavior: 'smooth' })}
                     style={{
@@ -666,8 +896,11 @@ export default function App() {
                       zIndex: 3, width: 32, height: 32, borderRadius: '50%',
                       background: 'white', border: '1px solid #e2e8f0',
                       boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      color: '#7c3aed', pointerEvents: 'auto',
+                      cursor: canScrollRight ? 'pointer' : 'default',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: canScrollRight ? '#7c3aed' : '#cbd5e1',
+                      opacity: canScrollRight ? 1 : 0.35,
+                      pointerEvents: 'auto',
                     }}
                     title="Scroll right"
                   >
@@ -680,9 +913,11 @@ export default function App() {
               <div
                 ref={cardRowRef}
                 className="spectator-key-panel"
+                onScroll={updateScrollArrows}
                 style={{
                   display: 'flex', flexDirection: 'row', alignItems: 'flex-end', gap: 6,
                   overflowX: 'auto', scrollbarWidth: 'none',
+                  paddingLeft: sortedSpots.length > 4 ? 52 : 0,
                   paddingRight: sortedSpots.length > 4 ? 52 : 0,
                   pointerEvents: 'none',
                 }}

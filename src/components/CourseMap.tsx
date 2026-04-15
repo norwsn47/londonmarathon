@@ -13,14 +13,30 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-function createOfficialIcon(title: string): L.DivIcon {
+/**
+ * Shared timing pill: clock icon + time in a white rounded container.
+ * Used by both spectator spot icons and official start/finish markers.
+ */
+function createTimingLabel(clockTime: string): string {
+  return `<div style="display:inline-flex;align-items:center;gap:3px;background:white;border:1px solid #e2e8f0;border-radius:6px;padding:2px 6px;box-shadow:0 1px 4px rgba(0,0,0,0.15);white-space:nowrap"><svg width="10" height="10" viewBox="0 0 10 10" fill="none" style="flex-shrink:0"><circle cx="5" cy="5" r="4" stroke="#94a3b8" stroke-width="1"/><path d="M5 2.5V5l1.5 1.2" stroke="#94a3b8" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/></svg><span style="font-size:10px;font-weight:700;color:#ea580c;font-family:system-ui,sans-serif;letter-spacing:0.01em">${clockTime}</span></div>`;
+}
+
+/**
+ * Diamond icon for official course markers.
+ * When clockTime is provided (start/finish), the timing pill is shown below the title.
+ */
+function createOfficialIcon(title: string, clockTime?: string): L.DivIcon {
+  const timingHtml = clockTime ? `<div style="margin-top:3px">${createTimingLabel(clockTime)}</div>` : '';
   return L.divIcon({
     className: 'official-marker-icon',
-    html: `<div style="position:relative;width:12px;height:12px">
+    html: `<div style="position:relative;width:12px;height:12px;overflow:visible">
       <svg width="12" height="12" viewBox="0 0 12 12" style="display:block;overflow:visible">
         <polygon points="6,0 12,6 6,12 0,6" fill="#f97316" stroke="white" stroke-width="1.5"/>
       </svg>
-      <span style="position:absolute;top:14px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:var(--text-xs);font-weight:700;color:#f97316;font-family:system-ui,sans-serif;letter-spacing:0.02em;text-shadow:0 1px 0 white,0 -1px 0 white,1px 0 0 white,-1px 0 0 white,0 0 5px rgba(255,255,255,0.9)">${title}</span>
+      <div style="position:absolute;top:14px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:2px">
+        <span style="white-space:nowrap;font-size:var(--text-xs);font-weight:700;color:#f97316;font-family:system-ui,sans-serif;letter-spacing:0.02em;text-shadow:0 1px 0 white,0 -1px 0 white,1px 0 0 white,-1px 0 0 white,0 0 5px rgba(255,255,255,0.9)">${title}</span>
+        ${timingHtml}
+      </div>
     </div>`,
     iconSize: [12, 12],
     iconAnchor: [6, 6],
@@ -31,7 +47,7 @@ function createOfficialIcon(title: string): L.DivIcon {
 /**
  * Letter marker icon.
  * - greyed: excluded from plan → slate colour
- * - clockTime: shown below the circle when spot is included and start time is set
+ * - clockTime: shown below the circle when spot is included; rendered as a timing pill
  */
 function createLetterIcon(letter: string, glowing = false, greyed = false, clockTime?: string): L.DivIcon {
   const size = glowing ? 28 : 20;
@@ -43,7 +59,7 @@ function createLetterIcon(letter: string, glowing = false, greyed = false, clock
     : '0 1px 4px rgba(0,0,0,0.4)';
   const fontSize = glowing ? 'var(--text-sm)' : 'var(--text-xs)';
   const timeLabel = clockTime
-    ? `<span style="position:absolute;top:${size + 3}px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:10px;font-weight:700;color:#ea580c;font-family:system-ui,sans-serif;text-shadow:0 1px 0 white,0 -1px 0 white,1px 0 0 white,-1px 0 0 white">${clockTime}</span>`
+    ? `<div style="position:absolute;top:${size + 4}px;left:50%;transform:translateX(-50%)">${createTimingLabel(clockTime)}</div>`
     : '';
   return L.divIcon({
     className: '',
@@ -213,11 +229,19 @@ export default function CourseMap({
     for (const marker of markers) {
       const pred = markerPredictions[marker.id];
       const popupHtml = buildMarkerPopupHtml(marker, pred);
+      // Start and finish always show a timing label on the icon itself
+      const alwaysLabeled = marker.id === 'start' || marker.id === 'finish';
+      const iconClock = alwaysLabeled ? pred?.clock : undefined;
+
       const existing = markerLayersRef.current.get(marker.id);
       if (existing) {
         existing.setPopupContent(popupHtml);
+        // Refresh icon so the always-visible timing label reflects updated predictions
+        if (alwaysLabeled) {
+          existing.setIcon(createOfficialIcon(marker.title, iconClock));
+        }
       } else {
-        const layer = L.marker([marker.lat, marker.lng], { icon: createOfficialIcon(marker.title) })
+        const layer = L.marker([marker.lat, marker.lng], { icon: createOfficialIcon(marker.title, iconClock) })
           .bindPopup(popupHtml, { maxWidth: 280 })
           .addTo(map);
         markerLayersRef.current.set(marker.id, layer);
