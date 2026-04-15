@@ -91,6 +91,9 @@ export default function App() {
   const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
   const [hoveredSpotId, setHoveredSpotId] = useState<string | null>(null);
   const [includedSpotIds, setIncludedSpotIds] = useState<Set<string>>(new Set());
+  // Mobile carousel: which tile is currently centred in the scroll container.
+  // Drives the purple glow on the tile AND the matching map icon highlight.
+  const [mobileCenteredSpotId, setMobileCenteredSpotId] = useState<string | null>(null);
   const includedInitRef = useRef(false);
   const cardRowRef = useRef<HTMLDivElement>(null);
 
@@ -238,6 +241,15 @@ export default function App() {
     if (!el) return;
     setCanScrollLeft(el.scrollLeft > 4);
     setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
+    // Track the centred carousel tile (mobile only)
+    if (isMobile && sortedSpots.length > 0) {
+      const tileStep = mobileTileW + MOBILE_SNAP_GAP;
+      const index = Math.min(
+        sortedSpots.length - 1,
+        Math.max(0, Math.round(el.scrollLeft / tileStep)),
+      );
+      setMobileCenteredSpotId(sortedSpots[index].id);
+    }
   }
 
   // ── Tile row rendering (shared between mobile panel and desktop overlay) ──
@@ -251,7 +263,8 @@ export default function App() {
 
     return sortedSpots.map((spot, i) => {
       const isActive   = hoveredSpotId === spot.id || selectedSpotId === spot.id;
-      const isSelected = selectedSpotId === spot.id;
+      // On mobile the centred carousel tile gets the same strong purple as a selected tile
+      const isSelected = selectedSpotId === spot.id || (mobile && mobileCenteredSpotId === spot.id);
       // Mobile tiles are always in the expanded state — no collapse interaction
       const isExpanded = mobile || isActive;
       const isIncluded = includedSpotIds.has(spot.id);
@@ -576,6 +589,9 @@ export default function App() {
     </div>
   );
 
+  // On mobile the centred carousel tile drives map icon highlight instead of hover
+  const mapHoveredSpotId = isMobile ? mobileCenteredSpotId : hoveredSpotId;
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div
@@ -740,7 +756,7 @@ export default function App() {
               displayUnit={displayUnit}
               markerPredictions={markerPredictions}
               selectedSpotId={selectedSpotId}
-              hoveredSpotId={hoveredSpotId}
+              hoveredSpotId={mapHoveredSpotId}
               includedSpotIds={includedSpotIds}
               onSpotSelect={setSelectedSpotId}
               panToOnSelect
@@ -844,7 +860,7 @@ export default function App() {
               displayUnit={displayUnit}
               markerPredictions={markerPredictions}
               selectedSpotId={selectedSpotId}
-              hoveredSpotId={hoveredSpotId}
+              hoveredSpotId={mapHoveredSpotId}
               includedSpotIds={includedSpotIds}
               onSpotSelect={setSelectedSpotId}
             />
