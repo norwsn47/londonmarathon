@@ -96,7 +96,11 @@ export default function App() {
 
   // ── Mobile detection, tile panel height, and carousel tile width ─────────
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
-  const [mobilePanelH, setMobilePanelH] = useState(0);
+  // Lazy-initialise so the map container already has the correct height on first
+  // render — prevents fitBounds firing against a full-screen height on mobile.
+  const [mobilePanelH, setMobilePanelH] = useState(() =>
+    window.innerWidth < 768 ? Math.floor((window.innerHeight - 56) / 2) : 0,
+  );
   // Width of each carousel tile: viewport minus peek on both sides.
   // Initialised eagerly so the first render is already correct.
   const [mobileTileW, setMobileTileW] = useState(() =>
@@ -739,6 +743,7 @@ export default function App() {
               hoveredSpotId={hoveredSpotId}
               includedSpotIds={includedSpotIds}
               onSpotSelect={setSelectedSpotId}
+              panToOnSelect
             />
           </div>
 

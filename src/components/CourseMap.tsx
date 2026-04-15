@@ -109,6 +109,8 @@ interface Props {
   hoveredSpotId: string | null;
   includedSpotIds: Set<string>;
   onSpotSelect: (id: string | null) => void;
+  /** When true, the map pans to a spectator spot whenever selectedSpotId changes */
+  panToOnSelect?: boolean;
 }
 
 export default function CourseMap({
@@ -121,6 +123,7 @@ export default function CourseMap({
   hoveredSpotId,
   includedSpotIds,
   onSpotSelect,
+  panToOnSelect = false,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -136,6 +139,14 @@ export default function CourseMap({
   const onSpotSelectRef = useRef(onSpotSelect);
   useEffect(() => { selectedSpotIdRef.current = selectedSpotId; }, [selectedSpotId]);
   useEffect(() => { onSpotSelectRef.current = onSpotSelect; }, [onSpotSelect]);
+
+  // Pan the map to the selected spectator spot (mobile: keeps map context in sync with tile)
+  useEffect(() => {
+    if (!panToOnSelect || !selectedSpotId || !mapRef.current) return;
+    const spot = spectatorPredictions.find(s => s.id === selectedSpotId);
+    if (!spot) return;
+    mapRef.current.panTo([spot.lat, spot.lng], { animate: true, duration: 0.4 });
+  }, [selectedSpotId, panToOnSelect, spectatorPredictions]);
 
   // Spots sorted by course distance — defines lettering A, B, C…
   const sortedSpots = useMemo(
