@@ -78,6 +78,11 @@
   .save-btn:hover { background: #ea580c; }
   .save-btn:disabled { opacity: 0.5; cursor: default; }
 
+  /* ── CSV buttons ── */
+  .secondary-btn { padding: 7px 14px; background: white; color: #0f172a; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 5px; }
+  .secondary-btn:hover { border-color: #cbd5e1; background: #f8fafc; }
+  .btn-group { display: flex; gap: 8px; align-items: center; }
+
   /* ── Toast ── */
   #toast { position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 600; color: white; z-index: 999; opacity: 0; transform: translateY(8px); transition: all 0.25s; pointer-events: none; }
   #toast.show { opacity: 1; transform: translateY(0); }
@@ -115,7 +120,11 @@
     <div id="tab-markers">
       <div class="section-header">
         <span class="section-title">Official Course Markers</span>
-        <button class="add-btn" id="add-marker-btn">+ Add Marker</button>
+        <div class="btn-group">
+          <button class="secondary-btn" onclick="exportMarkersCSV()">↓ Export CSV</button>
+          <label class="secondary-btn" style="cursor:pointer">↑ Import CSV<input type="file" accept=".csv" style="display:none" onchange="importMarkersCSV(this)"></label>
+          <button class="add-btn" id="add-marker-btn">+ Add Marker</button>
+        </div>
       </div>
       <div class="table-wrap">
         <table>
@@ -135,7 +144,11 @@
     <div id="tab-spots" style="display:none">
       <div class="section-header">
         <span class="section-title">Spectator Viewing Spots</span>
-        <button class="add-btn" id="add-spot-btn">+ Add Spot</button>
+        <div class="btn-group">
+          <button class="secondary-btn" onclick="exportSpotsCSV()">↓ Export CSV</button>
+          <label class="secondary-btn" style="cursor:pointer">↑ Import CSV<input type="file" accept=".csv" style="display:none" onchange="importSpotsCSV(this)"></label>
+          <button class="add-btn" id="add-spot-btn">+ Add Spot</button>
+        </div>
       </div>
       <div class="table-wrap">
         <table>
@@ -500,6 +513,248 @@ async function deleteSpot(id) {
 // ── Escape HTML ───────────────────────────────────────────────────────
 function esc(str) {
   return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  CSV HELPERS
+// ════════════════════════════════════════════════════════════════════
+
+// Wrap a value in quotes if it contains commas, quotes, or newlines
+function csvField(v) {
+  const s = String(v ?? '');
+  return (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r'))
+    ? '"' + s.replace(/"/g, '""') + '"'
+    : s;
+}
+
+function buildCSV(rows) {
+  return rows.map(row => row.map(csvField).join(',')).join('\r\n');
+}
+
+function downloadCSV(rows, filename) {
+  const blob = new Blob([buildCSV(rows)], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// Simple but spec-correct CSV parser — handles quoted fields and escaped quotes
+function parseCSV(text) {
+  const rows = [];
+  let row = [], cur = '', inQ = false;
+  const flush = () => { row.push(cur); cur = ''; };
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i], next = text[i + 1];
+    if (inQ) {
+      if (c === '"' && next === '"') { cur += '"'; i++; }
+      else if (c === '"') { inQ = false; }
+      else { cur += c; }
+    } else {
+      if (c === '"') { inQ = true; }
+      else if (c === ',') { flush(); }
+      else if (c === '\r' && next === '\n') { flush(); rows.push(row); row = []; i++; }
+      else if (c === '\n' || c === '\r') { flush(); rows.push(row); row = []; }
+      else { cur += c; }
+    }
+  }
+  flush();
+  if (row.some(c => c !== '')) rows.push(row);
+  return rows;
+}
+
+function colIndex(header, name) {
+  return header.findIndex(h => h.trim().toLowerCase() === name.toLowerCase());
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  OFFICIAL MARKERS — CSV EXPORT / IMPORT
+// ════════════════════════════════════════════════════════════════════
+
+function exportMarkersCSV() {
+  const header = ['id','title','description','distance_km','lat','lng','sort_order'];
+  const rows = markers.map(m => [m.id, m.title, m.description, m.distance_km, m.lat, m.lng, m.sort_order]);
+  downloadCSV([header, ...rows], 'official-markers.csv');
+  toast('Exported ' + markers.length + ' markers');
+}
+
+function importMarkersCSV(input) {
+  const file = input.files[0];
+  input.value = '';
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const rows = parseCSV(e.target.result);
+    if (rows.length < 2) { toast('CSV has no data rows', 'error'); return; }
+    const [header, ...dataRows] = rows;
+    const col = name => colIndex(header, name);
+    const idC = col('id'), titleC = col('title'), descC = col('description');
+    const distC = col('distance_km'), latC = col('lat'), lngC = col('lng'), sortC = col('sort_order');
+    if (titleC === -1 || distC === -1 || latC === -1 || lngC === -1) {
+      toast('CSV must have columns: title, distance_km, lat, lng', 'error'); return;
+    }
+    const parsed = dataRows
+      .filter(r => r.some(c => c.trim()))
+      .map(r => ({
+        id:          idC >= 0 ? r[idC]?.trim() : '',
+        title:       r[titleC]?.trim() || '',
+        description: descC >= 0 ? r[descC]?.trim() : '',
+        distance_km: parseFloat(r[distC]),
+        lat:         parseFloat(r[latC]),
+        lng:         parseFloat(r[lngC]),
+        sort_order:  sortC >= 0 ? (parseInt(r[sortC]) || 0) : 0,
+      }))
+      .filter(r => r.title && !isNaN(r.distance_km) && !isNaN(r.lat) && !isNaN(r.lng));
+    if (!parsed.length) { toast('No valid rows found — check required columns', 'error'); return; }
+    const existingIds = new Set(markers.map(m => m.id));
+    const updates = parsed.filter(r => r.id && existingIds.has(r.id)).length;
+    const creates = parsed.length - updates;
+    window._pendingImport = { type: 'markers', rows: parsed };
+    openModal(`
+      <button class="close-btn" onclick="closeModal()">×</button>
+      <h2>Import Official Markers</h2>
+      <p style="margin-bottom:16px;color:#64748b;font-size:13px">
+        <strong>${parsed.length}</strong> valid rows found —
+        <strong>${creates}</strong> new, <strong>${updates}</strong> update${updates !== 1 ? 's' : ''}.
+      </p>
+      <div class="table-wrap" style="max-height:220px;overflow-y:auto;margin-bottom:16px">
+        <table>
+          <thead><tr><th>Title</th><th>Distance</th><th>Lat</th><th>Lng</th></tr></thead>
+          <tbody>
+            ${parsed.slice(0, 8).map(r => `<tr>
+              <td>${esc(r.title)}</td>
+              <td>${r.distance_km} km</td>
+              <td>${r.lat}</td>
+              <td>${r.lng}</td>
+            </tr>`).join('')}
+            ${parsed.length > 8 ? `<tr><td colspan="4" style="text-align:center;color:#94a3b8">…and ${parsed.length - 8} more</td></tr>` : ''}
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-actions">
+        <button class="cancel-btn" onclick="closeModal()">Cancel</button>
+        <button class="save-btn" id="import-confirm-btn" onclick="confirmImport()">Import ${parsed.length} row${parsed.length !== 1 ? 's' : ''}</button>
+      </div>`);
+  };
+  reader.readAsText(file);
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  SPECTATOR SPOTS — CSV EXPORT / IMPORT
+// ════════════════════════════════════════════════════════════════════
+
+function exportSpotsCSV() {
+  // nearest_stations joined with ; (safe separator inside a quoted field)
+  const header = ['id','name','description','distance_km','distance_mile','lat','lng','nearest_stations','crowd_notes','sort_order'];
+  const rows = spots.map(s => [
+    s.id, s.name, s.description, s.distance_km, s.distance_mile ?? '',
+    s.lat, s.lng,
+    parseStations(s.nearest_stations).join(';'),
+    s.crowd_notes, s.sort_order,
+  ]);
+  downloadCSV([header, ...rows], 'spectator-spots.csv');
+  toast('Exported ' + spots.length + ' spots');
+}
+
+function importSpotsCSV(input) {
+  const file = input.files[0];
+  input.value = '';
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const rows = parseCSV(e.target.result);
+    if (rows.length < 2) { toast('CSV has no data rows', 'error'); return; }
+    const [header, ...dataRows] = rows;
+    const col = name => colIndex(header, name);
+    const idC = col('id'), nameC = col('name'), descC = col('description');
+    const distKmC = col('distance_km'), distMiC = col('distance_mile');
+    const latC = col('lat'), lngC = col('lng');
+    const stationsC = col('nearest_stations'), notesC = col('crowd_notes'), sortC = col('sort_order');
+    if (nameC === -1 || distKmC === -1 || latC === -1 || lngC === -1) {
+      toast('CSV must have columns: name, distance_km, lat, lng', 'error'); return;
+    }
+    const parsed = dataRows
+      .filter(r => r.some(c => c.trim()))
+      .map(r => ({
+        id:              idC >= 0 ? r[idC]?.trim() : '',
+        name:            r[nameC]?.trim() || '',
+        description:     descC >= 0 ? r[descC]?.trim() : '',
+        distance_km:     parseFloat(r[distKmC]),
+        distance_mile:   distMiC >= 0 && r[distMiC]?.trim() ? parseFloat(r[distMiC]) : null,
+        lat:             parseFloat(r[latC]),
+        lng:             parseFloat(r[lngC]),
+        nearest_stations: stationsC >= 0
+          ? r[stationsC]?.split(';').map(s => s.trim()).filter(Boolean)
+          : [],
+        crowd_notes:     notesC >= 0 ? r[notesC]?.trim() : '',
+        sort_order:      sortC >= 0 ? (parseInt(r[sortC]) || 0) : 0,
+      }))
+      .filter(r => r.name && !isNaN(r.distance_km) && !isNaN(r.lat) && !isNaN(r.lng));
+    if (!parsed.length) { toast('No valid rows found — check required columns', 'error'); return; }
+    const existingIds = new Set(spots.map(s => s.id));
+    const updates = parsed.filter(r => r.id && existingIds.has(r.id)).length;
+    const creates = parsed.length - updates;
+    window._pendingImport = { type: 'spots', rows: parsed };
+    openModal(`
+      <button class="close-btn" onclick="closeModal()">×</button>
+      <h2>Import Spectator Spots</h2>
+      <p style="margin-bottom:16px;color:#64748b;font-size:13px">
+        <strong>${parsed.length}</strong> valid rows found —
+        <strong>${creates}</strong> new, <strong>${updates}</strong> update${updates !== 1 ? 's' : ''}.
+      </p>
+      <div class="table-wrap" style="max-height:220px;overflow-y:auto;margin-bottom:16px">
+        <table>
+          <thead><tr><th>Name</th><th>Distance</th><th>Lat</th><th>Lng</th></tr></thead>
+          <tbody>
+            ${parsed.slice(0, 8).map(r => `<tr>
+              <td>${esc(r.name)}</td>
+              <td>${r.distance_km} km</td>
+              <td>${r.lat}</td>
+              <td>${r.lng}</td>
+            </tr>`).join('')}
+            ${parsed.length > 8 ? `<tr><td colspan="4" style="text-align:center;color:#94a3b8">…and ${parsed.length - 8} more</td></tr>` : ''}
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-actions">
+        <button class="cancel-btn" onclick="closeModal()">Cancel</button>
+        <button class="save-btn" id="import-confirm-btn" onclick="confirmImport()">Import ${parsed.length} row${parsed.length !== 1 ? 's' : ''}</button>
+      </div>`);
+  };
+  reader.readAsText(file);
+}
+
+// ── Shared import confirmation ────────────────────────────────────────
+async function confirmImport() {
+  const pending = window._pendingImport;
+  if (!pending) return;
+  const btn = document.getElementById('import-confirm-btn');
+  btn.disabled = true; btn.textContent = 'Importing…';
+
+  const isMarkers = pending.type === 'markers';
+  const existingIds = new Set(isMarkers ? markers.map(m => m.id) : spots.map(s => s.id));
+  const baseUrl = isMarkers ? '/api/admin/official-markers' : '/api/admin/spectator-spots';
+  let ok = 0, err = 0;
+
+  for (const row of pending.rows) {
+    try {
+      if (row.id && existingIds.has(row.id)) {
+        await apiFetch(`${baseUrl}/${row.id}`, { method: 'PUT', body: JSON.stringify(row) });
+      } else {
+        await apiFetch(baseUrl, { method: 'POST', body: JSON.stringify(row) });
+      }
+      ok++;
+    } catch { err++; }
+  }
+
+  window._pendingImport = null;
+  closeModal();
+  if (isMarkers) { await loadMarkers(); } else { await loadSpots(); }
+  toast(
+    `Imported ${ok} ${isMarkers ? 'marker' : 'spot'}${ok !== 1 ? 's' : ''}` +
+    (err ? ` · ${err} failed` : ''),
+    err && ok === 0 ? 'error' : 'success'
+  );
 }
 </script>
 </body>
