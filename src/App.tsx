@@ -35,9 +35,8 @@ const UNIT = 'km' as const;
 const TILE_COLLAPSED_W = 160;
 const TILE_EXPANDED_W  = 320; // mobile expanded (full-width tiles)
 const TILE_COLLAPSED_H = 80;
-// Desktop expanded tiles: width = fit-content (min TILE_COLLAPSED_W, max below),
-// height = 30vh so they never tower over the map.
-const DESKTOP_EXPANDED_MAX_W = 280;
+// Desktop expanded tiles: width is uncapped (fit-content so the tile grows as
+// wide as needed to show all text without clipping), height locked at 30vh.
 const DESKTOP_EXPANDED_H_CSS = '30vh';
 
 function secToHMM(sec: number): string {
@@ -247,12 +246,12 @@ export default function App() {
       const tileStyle: React.CSSProperties = {
         position: 'relative',
         pointerEvents: 'auto',
-        // Desktop expanded: content-driven width (min=collapsed, max=280), height=30vh.
+        // Desktop expanded: no maxWidth cap — tile grows as wide as content needs
+        // so text never wraps into more lines than fit within the locked 30vh height.
         // Mobile expanded: fixed TILE_EXPANDED_W width, fill panel height.
         // Collapsed (desktop only): fixed collapsed dimensions.
         width:    !mobile && isExpanded ? 'fit-content' : isExpanded ? TILE_EXPANDED_W : TILE_COLLAPSED_W,
         minWidth: !mobile && isExpanded ? TILE_COLLAPSED_W : undefined,
-        maxWidth: !mobile && isExpanded ? DESKTOP_EXPANDED_MAX_W : undefined,
         height:   isExpanded ? (mobile ? expandedH : DESKTOP_EXPANDED_H_CSS) : TILE_COLLAPSED_H,
         flexShrink: 0,
         display: 'flex',
