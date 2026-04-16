@@ -33,11 +33,11 @@ const UNIT = 'km' as const;
 
 // Tile dimension constants
 const TILE_COLLAPSED_W = 160;
-const TILE_EXPANDED_W  = 320; // desktop / fallback expanded width
+const TILE_EXPANDED_W  = 160; // desktop expanded width (half of previous 320)
 const TILE_COLLAPSED_H = 80;
-// Desktop expanded tiles: width is uncapped (fit-content so the tile grows as
-// wide as needed to show all text without clipping), height locked at 30vh.
-const DESKTOP_EXPANDED_H_CSS = '30vh';
+// Desktop expanded tiles: fixed narrow width so text wraps rather than sprawling
+// horizontally; height increased to 40vh to accommodate wrapped content.
+const DESKTOP_EXPANDED_H_CSS = '40vh';
 // Mobile carousel snap: peek amount on each side so adjacent tiles are visible.
 // Tile width = viewport width − 2×MOBILE_SNAP_PEEK; gap between tiles = MOBILE_SNAP_GAP.
 const MOBILE_SNAP_PEEK = 44;
@@ -274,11 +274,10 @@ export default function App() {
       const tileStyle: React.CSSProperties = {
         position: 'relative',
         pointerEvents: 'auto',
-        // Desktop expanded: fit-content (no max cap) so text never clips within 30vh.
+        // Desktop expanded: fixed narrow width so text wraps into taller tile.
         // Mobile expanded: carousel tile width (viewport − 2×peek) for snap-to-centre.
         // Collapsed (desktop only): fixed collapsed dimensions.
-        width:          !mobile && isExpanded ? 'fit-content' : isExpanded ? mobileTileW : TILE_COLLAPSED_W,
-        minWidth:       !mobile && isExpanded ? TILE_COLLAPSED_W : undefined,
+        width:          isExpanded ? (mobile ? mobileTileW : TILE_EXPANDED_W) : TILE_COLLAPSED_W,
         height:         isExpanded ? (mobile ? expandedH : DESKTOP_EXPANDED_H_CSS) : TILE_COLLAPSED_H,
         scrollSnapAlign: mobile ? 'center' : undefined,
         flexShrink: 0,
