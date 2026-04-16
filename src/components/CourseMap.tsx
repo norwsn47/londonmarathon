@@ -196,6 +196,8 @@ export default function CourseMap({
 
   // Update letter icons whenever hover/select/include state changes.
   // Letter icons are used at all zoom levels — no binocular switching.
+  // zIndexOffset is set very high so letter labels and timing pills always
+  // render above other map layers (active markers go even higher).
   useEffect(() => {
     sortedSpots.forEach((spot, i) => {
       const layer = spectatorLayersRef.current.get(spot.id);
@@ -205,6 +207,7 @@ export default function CourseMap({
       const included = includedSpotIds.has(spot.id);
       const clockTime = included ? (spot.clockTime ?? undefined) : undefined;
       layer.setIcon(createLetterIcon(letter, active, !included, clockTime));
+      layer.setZIndexOffset(active ? 20000 : 10000);
     });
   }, [sortedSpots, hoveredSpotId, selectedSpotId, includedSpotIds]);
 
@@ -292,7 +295,7 @@ export default function CourseMap({
         existing.setTooltipContent(`${spot.name} · ${displayUnit === 'mi' ? `Mile ${spot.distanceMile}` : `${spot.distanceKm} km`}`);
       } else {
         const distLabel = displayUnit === 'mi' ? `Mile ${spot.distanceMile}` : `${spot.distanceKm} km`;
-        const layer = L.marker([spot.lat, spot.lng], { icon: createLetterIcon(letter) })
+        const layer = L.marker([spot.lat, spot.lng], { icon: createLetterIcon(letter), zIndexOffset: 10000 })
           .bindTooltip(`${spot.name} · ${distLabel}`, {
             permanent: true, direction: 'right', className: 'spectator-label', offset: [8, 0],
           })
