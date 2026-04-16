@@ -33,7 +33,7 @@ const UNIT = 'km' as const;
 
 // Tile dimension constants
 const TILE_COLLAPSED_W = 160;
-const TILE_EXPANDED_W  = 160; // desktop expanded width (half of previous 320)
+const TILE_EXPANDED_W  = 480; // desktop expanded width (3× collapsed width of 160)
 const TILE_COLLAPSED_H = 80;
 // Desktop expanded tiles: fixed narrow width so text wraps rather than sprawling
 // horizontally; height increased to 40vh to accommodate wrapped content.
