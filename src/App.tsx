@@ -36,8 +36,8 @@ const TILE_COLLAPSED_W = 160;
 const TILE_EXPANDED_W  = 480; // desktop expanded width (3× collapsed width of 160)
 const TILE_COLLAPSED_H = 80;
 // Desktop expanded tiles: fixed narrow width so text wraps rather than sprawling
-// horizontally; height increased to 40vh to accommodate wrapped content.
-const DESKTOP_EXPANDED_H_CSS = '40vh';
+// horizontally; height set to 28vh with inner scroll area filling space.
+const DESKTOP_EXPANDED_H_CSS = '28vh';
 // Mobile carousel snap: peek amount on each side so adjacent tiles are visible.
 // Tile width = viewport width − 2×MOBILE_SNAP_PEEK; gap between tiles = MOBILE_SNAP_GAP.
 const MOBILE_SNAP_PEEK = 44;
@@ -285,9 +285,8 @@ export default function App() {
         flexDirection: 'column',
         alignItems: 'flex-start',
         justifyContent: 'flex-start',
-        // On mobile the tile is overflow:hidden; inner body scrolls.
-        // On desktop the tile itself scrolls (overflow-y:auto when expanded).
-        overflowY: (isExpanded && !mobile) ? 'auto' : 'hidden',
+        // Tile is always overflow:hidden; inner scroll area handles scrolling.
+        overflowY: 'hidden',
         background: isSelected ? 'rgba(245,240,255,0.98)' : isActive ? 'rgba(250,247,255,0.97)' : 'rgba(255,255,255,0.93)',
         border: isSelected ? '1.5px solid #a855f7' : isActive ? '1px solid #c084fc' : '1px solid #e2e8f0',
         borderRadius: 10,
@@ -416,7 +415,7 @@ export default function App() {
                 className="tile-scroll-area"
                 style={{
                   flex: 1, minHeight: 0,
-                  overflowY: mobile ? 'auto' : 'visible',
+                  overflowY: 'auto',
                   marginTop: 5,
                   display: 'flex', flexDirection: 'column', gap: 5,
                 }}
@@ -450,12 +449,10 @@ export default function App() {
                     {spot.crowdNotes}
                   </div>
                 )}
-                {/* On desktop the links sit inside the scroll body */}
-                {!mobile && linksEl}
               </div>
 
-              {/* On mobile the links are pinned to the bottom of the tile */}
-              {mobile && linksEl && (
+              {/* Links pinned to bottom of tile on both mobile and desktop */}
+              {linksEl && (
                 <div style={{ flexShrink: 0, marginTop: 4 }}>
                   {linksEl}
                 </div>
